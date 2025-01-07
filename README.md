@@ -150,7 +150,3 @@ This project is licensed under the MIT License.
 ## **Contributing**
 
 Contributions are welcome! Feel free to fork this repository, create a feature branch, and submit a pull request.
-
----
-
-Feel free to copy this into your repository’s `README.md` file. If you need additional details or improvements, let me know!
