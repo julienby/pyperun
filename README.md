@@ -1,4 +1,5 @@
-![PypeRun](templates/PypeRun.png)
+<img alt="PypeRun" src="templates/PypeRun.png" width="300">
+
 
 # **Python Pipeline Scheduler with Flask and APScheduler**
 
