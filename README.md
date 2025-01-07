@@ -1,3 +1,5 @@
+![PypeRun](templates/PypeRun.png)
+
 # **Python Pipeline Scheduler with Flask and APScheduler**
 
 A simple Python-based pipeline scheduler that allows the execution of multiple pipelines (composed of one or more tasks) in parallel. It also includes a minimalistic Flask dashboard to monitor task execution history and scheduled pipelines.
@@ -69,7 +71,7 @@ The scheduler and Flask dashboard will run simultaneously.
   ```python
   def task_1():
       print("Task 1 is running...")
-  
+
   def pipeline_1():
       task_1()
       print("Pipeline 1 is complete!")
