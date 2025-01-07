@@ -1,7 +1,3 @@
-Voici un **README.md** prêt à être utilisé pour votre projet GitHub :
-
----
-
 # **Python Pipeline Scheduler with Flask and APScheduler**
 
 A simple Python-based pipeline scheduler that allows the execution of multiple pipelines (composed of one or more tasks) in parallel. It also includes a minimalistic Flask dashboard to monitor task execution history and scheduled pipelines.
