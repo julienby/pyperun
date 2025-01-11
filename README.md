@@ -73,6 +73,9 @@ The scheduler and Flask dashboard will run simultaneously.
   def task_1():
       print("Task 1 is running...")
 
+  def task_2():
+      print("Task 2 is running...")
+  
   def pipeline_1():
       task_1()
       print("Pipeline 1 is complete!")
