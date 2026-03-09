@@ -1,4 +1,4 @@
-# PyMyx
+# Pyperun
 
 Minimal IoT time-series data processing pipeline for valvometric data.
 
@@ -9,15 +9,15 @@ CSV bruts  -->  parse --> clean --> resample --> transform --> aggregate --> to_
                                                                         --> exportcsv (CSV)
 ```
 
-PyMyx is designed as a **framework**: you install it once and use it as a black box. Your experiment lives in a separate project directory containing only your flows, params, datasets, and optional custom treatments.
+Pyperun is designed as a **framework**: you install it once and use it as a black box. Your experiment lives in a separate project directory containing only your flows, params, datasets, and optional custom treatments.
 
 ## Installation
 
 ```bash
-git clone <url-du-repo> ~/pymyx
-cd ~/pymyx
+git clone <url-du-repo> ~/pyperun
+cd ~/pyperun
 
-# Installer les dependances et la commande pymyx
+# Installer les dependances et la commande pyperun
 pip install -e .
 
 # Avec les outils de dev (pytest, ruff)
@@ -27,20 +27,20 @@ pip install -e ".[dev]"
 > **setuptools trop ancien ?** Si `pip install -e .` echoue avec `build_editable hook missing` :
 > `pip install --user --upgrade pip setuptools` puis relancer.
 
-> **`pymyx` not found ?** Ajouter `~/.local/bin` au PATH :
+> **`pyperun` not found ?** Ajouter `~/.local/bin` au PATH :
 > ```bash
 > echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 > source ~/.bashrc
 > ```
 
-**Important** : toutes les commandes `pymyx` doivent etre lancees depuis le repertoire du projet (celui qui contient `flows/` et `datasets/`). Le mode editable (`-e`) est recommande pour le dev comme pour la prod.
+**Important** : toutes les commandes `pyperun` doivent etre lancees depuis le repertoire du projet (celui qui contient `flows/` et `datasets/`). Le mode editable (`-e`) est recommande pour le dev comme pour la prod.
 
 Verify:
 
 ```bash
-pymyx --help
-pymyx list flows
-pymyx list treatments
+pyperun --help
+pyperun list flows
+pyperun list treatments
 ```
 
 ## Quick start
@@ -48,7 +48,7 @@ pymyx list treatments
 ### 1. Initialize a dataset
 
 ```bash
-pymyx init MON-EXPERIENCE
+pyperun init MON-EXPERIENCE
 ```
 
 This creates:
@@ -71,13 +71,13 @@ Expected CSV format (no header, semicolon-delimited, key:value pairs):
 ### 3. Run the pipeline
 
 ```bash
-pymyx flow mon-experience
+pyperun flow mon-experience
 ```
 
 ### 4. Check status
 
 ```bash
-pymyx status
+pyperun status
 ```
 
 ```
@@ -90,80 +90,80 @@ mon-experience (MON-EXPERIENCE)
 
 ## CLI reference
 
-### `pymyx flow <name>`
+### `pyperun flow <name>`
 
 Run a full pipeline (all steps sequentially).
 
 ```bash
 # Run the full pipeline
-pymyx flow valvometry_daily
+pyperun flow valvometry_daily
 
 # Run a single step
-pymyx flow valvometry_daily --step clean
+pyperun flow valvometry_daily --step clean
 
 # Run from a step to the end
-pymyx flow valvometry_daily --from-step resample
+pyperun flow valvometry_daily --from-step resample
 
 # Run a range of steps
-pymyx flow valvometry_daily --from-step clean --to-step aggregate
+pyperun flow valvometry_daily --from-step clean --to-step aggregate
 
 # Time filtering (ISO 8601)
-pymyx flow valvometry_daily --from 2026-02-01 --to 2026-02-10
+pyperun flow valvometry_daily --from 2026-02-01 --to 2026-02-10
 
 # Incremental mode (only process new data since last run)
-pymyx flow valvometry_daily --last
+pyperun flow valvometry_daily --last
 
 # Replace output for the time range being processed
-pymyx flow valvometry_daily --output-mode replace
+pyperun flow valvometry_daily --output-mode replace
 
 # Wipe all output directories and reprocess from scratch
-pymyx flow valvometry_daily --output-mode full-replace
+pyperun flow valvometry_daily --output-mode full-replace
 ```
 
-### `pymyx run <treatment>`
+### `pyperun run <treatment>`
 
 Run a single treatment with explicit paths.
 
 ```bash
-pymyx run parse --input datasets/PREMANIP-GRACE/00_raw --output datasets/PREMANIP-GRACE/10_parsed
+pyperun run parse --input datasets/PREMANIP-GRACE/00_raw --output datasets/PREMANIP-GRACE/10_parsed
 
 # With custom params
-pymyx run aggregate \
+pyperun run aggregate \
     --input datasets/PREMANIP-GRACE/30_transform \
     --output datasets/PREMANIP-GRACE/40_aggregated \
     --params '{"windows": ["30s", "5min"], "metrics": ["mean", "median"]}'
 ```
 
-### `pymyx init <dataset>`
+### `pyperun init <dataset>`
 
 Scaffold a new dataset (creates directories + flow template).
 
 ```bash
-pymyx init MY-EXPERIMENT
+pyperun init MY-EXPERIMENT
 ```
 
-### `pymyx status`
+### `pyperun status`
 
 Show the state of all datasets (file counts, last modification date).
 
 ```bash
-pymyx status
+pyperun status
 ```
 
-### `pymyx list`
+### `pyperun list`
 
 ```bash
-pymyx list flows        # List available flows
-pymyx list treatments   # List available treatments
-pymyx list steps --flow valvometry_daily  # List steps in a flow
+pyperun list flows        # List available flows
+pyperun list treatments   # List available treatments
+pyperun list steps --flow valvometry_daily  # List steps in a flow
 ```
 
 ## Custom treatments
 
-PyMyx discovers treatments from two locations, **local takes priority over built-ins**:
+Pyperun discovers treatments from two locations, **local takes priority over built-ins**:
 
 1. `./treatments/<name>/` — your project (custom or overrides)
-2. `pymyx/treatments/<name>/` — built-in treatments (fallback)
+2. `pyperun/treatments/<name>/` — built-in treatments (fallback)
 
 To add a custom treatment, create a directory in your project:
 
@@ -252,7 +252,7 @@ Flows are JSON files in `flows/`. Each step declares its `input` and `output` ex
 
 ## Configuration
 
-Each treatment is configured via `pymyx/treatments/<name>/treatment.json` which declares typed params with defaults. Params can be overridden in the flow JSON or via `--params` on the CLI.
+Each treatment is configured via `pyperun/treatments/<name>/treatment.json` which declares typed params with defaults. Params can be overridden in the flow JSON or via `--params` on the CLI.
 
 ### parse
 
@@ -317,11 +317,11 @@ Each treatment is configured via `pymyx/treatments/<name>/treatment.json` which 
 
 ## Project structure
 
-### PyMyx (framework repo)
+### Pyperun (framework repo)
 
 ```
-pymyx/
-  cli.py                    # CLI entry point (pymyx command)
+pyperun/
+  cli.py                    # CLI entry point (pyperun command)
   core/
     pipeline.py             # Pipeline registry (treatment -> directory mapping)
     flow.py                 # Flow executor (runs steps sequentially)
@@ -369,7 +369,7 @@ For automatic incremental processing, add `scripts/hourly_sync.sh` to crontab:
 
 ```bash
 crontab -e
-0 * * * * /home/user/pymyx/scripts/hourly_sync.sh >> /var/log/pymyx_hourly.log 2>&1
+0 * * * * /home/user/pyperun/scripts/hourly_sync.sh >> /var/log/pyperun_hourly.log 2>&1
 ```
 
 The script uses `--last` to detect new data and only process the delta.
@@ -379,7 +379,7 @@ The script uses `--last` to detect new data and only process the delta.
 - **Parquet naming**: `<source>__<domain>__<YYYY-MM-DD>.parquet`
 - **Aggregated naming**: `<source>__<domain>__<YYYY-MM-DD>__<window>.parquet`
 - **Domains**: `bio_signal` (m0-m11, Int64) and `environment` (outdoor_temp, Float64)
-- **Logging**: all events go to `pymyx.log` (jsonlines, one event per line)
+- **Logging**: all events go to `pyperun.log` (jsonlines, one event per line)
 
 ## Development
 

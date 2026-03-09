@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pymyx.core.filename import (
+from pyperun.core.filename import (
     FileParts,
     build_parquet_path,
     list_parquet_files,

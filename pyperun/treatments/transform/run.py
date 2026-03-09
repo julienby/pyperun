@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from pymyx.core.filename import build_parquet_path, list_parquet_files, parse_parquet_path
+from pyperun.core.filename import build_parquet_path, list_parquet_files, parse_parquet_path
 
 
 TRANSFORMS = {

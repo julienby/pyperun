@@ -3,9 +3,9 @@ import json
 import sys
 from pathlib import Path
 
-from pymyx.core.pipeline import DATASETS_PREFIX, resolve_paths
-from pymyx.core.runner import run_treatment
-from pymyx.core.timefilter import parse_iso_utc, resolve_last_range
+from pyperun.core.pipeline import DATASETS_PREFIX, resolve_paths
+from pyperun.core.runner import run_treatment
+from pyperun.core.timefilter import parse_iso_utc, resolve_last_range
 
 
 _BUILTIN_FLOWS_ROOT = Path(__file__).resolve().parent.parent.parent / "flows"
@@ -177,7 +177,7 @@ def run_flow(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run a PyMyx flow")
+    parser = argparse.ArgumentParser(description="Run a Pyperun flow")
     parser.add_argument("--flow", required=True, help="Flow name")
     parser.add_argument("--from", dest="time_from", default=None,
                         help="Start of time window (ISO 8601)")

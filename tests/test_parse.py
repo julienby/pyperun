@@ -3,7 +3,7 @@
 import pandas as pd
 import pytest
 
-from pymyx.treatments.parse.run import parse_file, resolve_columns, run
+from pyperun.treatments.parse.run import parse_file, resolve_columns, run
 
 
 @pytest.fixture

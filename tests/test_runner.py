@@ -6,8 +6,8 @@ from pathlib import Path
 import jsonlines
 import pytest
 
-from pymyx.core.runner import run_treatment
-from pymyx.core.logger import LOG_PATH
+from pyperun.core.runner import run_treatment
+from pyperun.core.logger import LOG_PATH
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def run(input_dir, output_dir, params):
 
 @pytest.fixture(autouse=True)
 def clean_log():
-    """Remove pymyx.log before each test to isolate log assertions."""
+    """Remove pyperun.log before each test to isolate log assertions."""
     if LOG_PATH.exists():
         LOG_PATH.unlink()
     yield
@@ -51,7 +51,7 @@ def clean_log():
 
 def test_run_with_defaults(tmp_treatment, tmp_path, monkeypatch):
     """run_treatment merges defaults correctly and the run function receives them."""
-    import pymyx.core.runner as runner_mod
+    import pyperun.core.runner as runner_mod
 
     monkeypatch.setattr(runner_mod, "TREATMENTS_ROOT", tmp_treatment.parent)
 
@@ -68,7 +68,7 @@ def test_run_with_defaults(tmp_treatment, tmp_path, monkeypatch):
 
 def test_run_with_override(tmp_treatment, tmp_path, monkeypatch):
     """Provided params override defaults."""
-    import pymyx.core.runner as runner_mod
+    import pyperun.core.runner as runner_mod
 
     monkeypatch.setattr(runner_mod, "TREATMENTS_ROOT", tmp_treatment.parent)
 
@@ -84,8 +84,8 @@ def test_run_with_override(tmp_treatment, tmp_path, monkeypatch):
 
 
 def test_log_contains_success(tmp_treatment, tmp_path, monkeypatch):
-    """pymyx.log should contain a success event after a run."""
-    import pymyx.core.runner as runner_mod
+    """pyperun.log should contain a success event after a run."""
+    import pyperun.core.runner as runner_mod
 
     monkeypatch.setattr(runner_mod, "TREATMENTS_ROOT", tmp_treatment.parent)
 
@@ -106,7 +106,7 @@ def test_log_contains_success(tmp_treatment, tmp_path, monkeypatch):
 
 def test_missing_input_dir(tmp_treatment, tmp_path, monkeypatch):
     """Should raise FileNotFoundError for non-existent input dir."""
-    import pymyx.core.runner as runner_mod
+    import pyperun.core.runner as runner_mod
 
     monkeypatch.setattr(runner_mod, "TREATMENTS_ROOT", tmp_treatment.parent)
 
@@ -116,7 +116,7 @@ def test_missing_input_dir(tmp_treatment, tmp_path, monkeypatch):
 
 def test_unknown_param(tmp_treatment, tmp_path, monkeypatch):
     """Should raise ValueError for unknown params."""
-    import pymyx.core.runner as runner_mod
+    import pyperun.core.runner as runner_mod
 
     monkeypatch.setattr(runner_mod, "TREATMENTS_ROOT", tmp_treatment.parent)
 

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pymyx.treatments.normalize.run import PARAMS_FILE, run
+from pyperun.treatments.normalize.run import PARAMS_FILE, run
 
 
 def _make_parquet(base_dir, source, domain, day, data):

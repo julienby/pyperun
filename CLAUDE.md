@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-PyMyx is a minimal IoT time-series data processing pipeline for valvometric data. It processes raw sensor CSV files (key:value format) through a 7-step pipeline to produce ML-ready aggregated parquet files, export to PostgreSQL, and export to CSV (parse -> clean -> resample -> transform -> aggregate -> to_postgres -> exportcsv).
+Pyperun is a minimal IoT time-series data processing pipeline for valvometric data. It processes raw sensor CSV files (key:value format) through a 7-step pipeline to produce ML-ready aggregated parquet files, export to PostgreSQL, and export to CSV (parse -> clean -> resample -> transform -> aggregate -> to_postgres -> exportcsv).
 
 ## Build & Run
 
@@ -13,36 +13,36 @@ PyMyx is a minimal IoT time-series data processing pipeline for valvometric data
 pip install -e ".[dev]"
 
 # CLI entry point
-pymyx --help
+pyperun --help
 
 # Initialize a new dataset
-pymyx init MY-EXPERIMENT
+pyperun init MY-EXPERIMENT
 
 # Run the full pipeline
-pymyx flow valvometry_daily
+pyperun flow valvometry_daily
 
 # Run a single step from a flow
-pymyx flow valvometry_daily --step clean
+pyperun flow valvometry_daily --step clean
 
 # Run from a step to the end
-pymyx flow valvometry_daily --from-step resample
+pyperun flow valvometry_daily --from-step resample
 
 # Incremental mode (only new data)
-pymyx flow valvometry_daily --last
+pyperun flow valvometry_daily --last
 
 # Run a single treatment with explicit paths
-pymyx run parse --input datasets/PREMANIP-GRACE/00_raw --output datasets/PREMANIP-GRACE/10_parsed
+pyperun run parse --input datasets/PREMANIP-GRACE/00_raw --output datasets/PREMANIP-GRACE/10_parsed
 
 # Run with custom params
-pymyx run aggregate --input datasets/PREMANIP-GRACE/30_transform --output datasets/PREMANIP-GRACE/40_aggregated --params '{"windows": ["30s", "5min"], "metrics": ["mean", "median"]}'
+pyperun run aggregate --input datasets/PREMANIP-GRACE/30_transform --output datasets/PREMANIP-GRACE/40_aggregated --params '{"windows": ["30s", "5min"], "metrics": ["mean", "median"]}'
 
 # Show status of all datasets
-pymyx status
+pyperun status
 
 # List flows / treatments / steps
-pymyx list flows
-pymyx list treatments
-pymyx list steps --flow valvometry_daily
+pyperun list flows
+pyperun list treatments
+pyperun list steps --flow valvometry_daily
 
 # Run tests
 python -m pytest tests/ -v
@@ -58,14 +58,14 @@ ruff check .
 
 ### Core
 
-- `pymyx/cli.py` — CLI entry point (`pymyx` command), subcommands: flow, run, init, status, list
-- `pymyx/core/pipeline.py` — pipeline registry: maps treatment -> input/output directory convention
-- `pymyx/core/flow.py` — reads a flow JSON, resolves paths from registry when `dataset` is present, runs steps sequentially via runner
-- `pymyx/core/runner.py` — loads a treatment, validates params, executes run(), logs events
-- `pymyx/core/validator.py` — pydantic validation of treatment.json + param merging (defaults + overrides)
-- `pymyx/core/logger.py` — jsonlines event logging to `pymyx.log`
-- `pymyx/core/timefilter.py` — time filtering, date extraction from filenames, incremental processing (`--last`)
-- `pymyx/core/filename.py` — parquet filename conventions (parse, build, list)
+- `pyperun/cli.py` — CLI entry point (`pyperun` command), subcommands: flow, run, init, status, list
+- `pyperun/core/pipeline.py` — pipeline registry: maps treatment -> input/output directory convention
+- `pyperun/core/flow.py` — reads a flow JSON, resolves paths from registry when `dataset` is present, runs steps sequentially via runner
+- `pyperun/core/runner.py` — loads a treatment, validates params, executes run(), logs events
+- `pyperun/core/validator.py` — pydantic validation of treatment.json + param merging (defaults + overrides)
+- `pyperun/core/logger.py` — jsonlines event logging to `pyperun.log`
+- `pyperun/core/timefilter.py` — time filtering, date extraction from filenames, incremental processing (`--last`)
+- `pyperun/core/filename.py` — parquet filename conventions (parse, build, list)
 
 ### Pipeline (7 treatments)
 
@@ -79,13 +79,13 @@ ruff check .
 | 6 | `to_postgres` | 40_aggregated -> PostgreSQL | Export parquet data to PostgreSQL wide tables for observability (Grafana). Marked `external` in registry. |
 | 7 | `exportcsv` | 40_aggregated -> 61_exportcsv | Export aggregated data to CSV per device, with column selection/renaming and timezone conversion |
 
-The pipeline registry lives in `pymyx/core/pipeline.py` (PIPELINE_STEPS). Steps marked `external: True` write to external services (not disk) and are excluded from the up-to-date check in `pymyx status`.
+The pipeline registry lives in `pyperun/core/pipeline.py` (PIPELINE_STEPS). Steps marked `external: True` write to external services (not disk) and are excluded from the up-to-date check in `pyperun status`.
 
 ### Key files
 
-- `pymyx/treatments/<name>/treatment.json` — declares params with types and defaults
-- `pymyx/treatments/<name>/run.py` — implements `def run(input_dir, output_dir, params)`
-- `pymyx/core/pipeline.py` — PIPELINE_STEPS registry (treatment -> directory convention)
+- `pyperun/treatments/<name>/treatment.json` — declares params with types and defaults
+- `pyperun/treatments/<name>/run.py` — implements `def run(input_dir, output_dir, params)`
+- `pyperun/core/pipeline.py` — PIPELINE_STEPS registry (treatment -> directory convention)
 - `flows/<name>.json` — flow definitions (simplified format with `dataset` field, or legacy format with explicit paths)
 
 ## Flow format
@@ -143,9 +143,9 @@ Key configurable params:
 
 ## Conventions
 
-- Treatments live under `pymyx/treatments/`, flows under `flows/`
+- Treatments live under `pyperun/treatments/`, flows under `flows/`
 - Each treatment has `treatment.json` (schema) + `run.py` (logic)
-- All logging goes to `pymyx.log` (jsonlines format, one event per line)
+- All logging goes to `pyperun.log` (jsonlines format, one event per line)
 - Pipeline stages are numbered: 00_raw, 10_parsed, 20_clean, 25_resampled, 30_transform, 40_aggregated, 60_postgres, 61_exportcsv
 - Datasets live under `datasets/<DATASET>/` (gitignored)
-- `pymyx init <DATASET>` scaffolds a new dataset with directories + flow template
+- `pyperun init <DATASET>` scaffolds a new dataset with directories + flow template

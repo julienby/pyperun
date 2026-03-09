@@ -1,4 +1,4 @@
-# Projet : PyMyx
+# Projet : Pyperun
 
 ## Philosophie
 Outil minimaliste de pipeline de traitement de données IoT (séries temporelles).
@@ -13,7 +13,7 @@ Règle 80/20 : ne pas implémenter ce qui sera peu utilisé.
 - Un traitement peut tourner seul ou dans un flow, sans rien changer à son code
 
 ## Structure du projet
-pymyx/
+pyperun/
 ├── core/
 │   ├── runner.py        ← exécute un traitement seul
 │   ├── flow.py          ← exécute un flow complet
@@ -101,14 +101,14 @@ def run(input_dir: str, output_dir: str, params: dict) -> None
 - Valide et merge les params (defaults + params fournis)
 - Appelle run(input_dir, output_dir, params)
 - Loggue un event jsonlines avant et après l'exécution
-- CLI : python -m pymyx.core.runner --treatment <name> --input <dir> --output <dir> [--params <json_inline>]
+- CLI : python -m pyperun.core.runner --treatment <name> --input <dir> --output <dir> [--params <json_inline>]
 
 ## core/flow.py
 - Lit flow.json depuis flows/
 - Exécute les steps dans l'ordre via runner.py
 - S'arrête proprement sur erreur avec message clair (quel step, quelle erreur)
 - Loggue chaque step
-- CLI : python -m pymyx.core.flow --flow <name>
+- CLI : python -m pyperun.core.flow --flow <name>
 
 ## core/logger.py
 Format jsonlines, un event par ligne :
@@ -121,7 +121,7 @@ Format jsonlines, un event par ligne :
   "duration_ms": integer,
   "error": "string|null"
 }
-Fichier de log : pymyx.log à la racine du projet.
+Fichier de log : pyperun.log à la racine du projet.
 
 ## core/validator.py
 - Valide que treatment.json respecte le contrat
@@ -181,7 +181,7 @@ Pas de : airflow, prefect, dagster, celery, redis, ou tout autre orchestrateur.
 
 ## README.md
 Expliquer en 20 lignes maximum :
-- Ce qu'est # Projet : pymyx
+- Ce qu'est # Projet : pyperun
 
 ## Philosophie
 Outil minimaliste de pipeline de traitement de données IoT (séries temporelles).
@@ -196,7 +196,7 @@ Règle 80/20 : ne pas implémenter ce qui sera peu utilisé.
 - Un traitement peut tourner seul ou dans un flow, sans rien changer à son code
 
 ## Structure du projet
-pymyx/
+pyperun/
 ├── core/
 │   ├── runner.py        ← exécute un traitement seul
 │   ├── flow.py          ← exécute un flow complet
@@ -284,14 +284,14 @@ def run(input_dir: str, output_dir: str, params: dict) -> None
 - Valide et merge les params (defaults + params fournis)
 - Appelle run(input_dir, output_dir, params)
 - Loggue un event jsonlines avant et après l'exécution
-- CLI : python -m pymyx.core.runner --treatment <name> --input <dir> --output <dir> [--params <json_inline>]
+- CLI : python -m pyperun.core.runner --treatment <name> --input <dir> --output <dir> [--params <json_inline>]
 
 ## core/flow.py
 - Lit flow.json depuis flows/
 - Exécute les steps dans l'ordre via runner.py
 - S'arrête proprement sur erreur avec message clair (quel step, quelle erreur)
 - Loggue chaque step
-- CLI : python -m pymyx.core.flow --flow <name>
+- CLI : python -m pyperun.core.flow --flow <name>
 
 ## core/logger.py
 Format jsonlines, un event par ligne :
@@ -304,7 +304,7 @@ Format jsonlines, un event par ligne :
   "duration_ms": integer,
   "error": "string|null"
 }
-Fichier de log : pymyx.log à la racine du projet.
+Fichier de log : pyperun.log à la racine du projet.
 
 ## core/validator.py
 - Valide que treatment.json respecte le contrat
@@ -364,7 +364,7 @@ Pas de : airflow, prefect, dagster, celery, redis, ou tout autre orchestrateur.
 
 ## README.md
 Expliquer en 20 lignes maximum :
-- Ce qu'est pymyx et ce qu'il n'est pas
+- Ce qu'est pyperun et ce qu'il n'est pas
 - Le modèle mental (traitement / flow / filesystem)
 - Comment lancer un traitement seul
 - Comment lancer un flow complet

@@ -2,7 +2,7 @@ import argparse
 import json
 import sys
 
-from pymyx.core.timefilter import parse_iso_utc
+from pyperun.core.timefilter import parse_iso_utc
 
 
 def _add_common_args(parser):
@@ -32,7 +32,7 @@ def _validate_common_args(parser, args):
 
 
 def cmd_flow(args, parser):
-    from pymyx.core.flow import run_flow
+    from pyperun.core.flow import run_flow
 
     if args.step and (args.from_step or args.to_step):
         parser.error("--step is mutually exclusive with --from-step/--to-step")
@@ -45,7 +45,7 @@ def cmd_flow(args, parser):
 
 
 def cmd_run(args, parser):
-    from pymyx.core.runner import run_treatment
+    from pyperun.core.runner import run_treatment
 
     time_from, time_to = _validate_common_args(parser, args)
     params = json.loads(args.params)
@@ -55,8 +55,8 @@ def cmd_run(args, parser):
 
 
 def cmd_list(args, _parser):
-    from pymyx.core.flow import get_flows_root, _find_flow as find_flow
-    from pymyx.core.runner import TREATMENTS_ROOT
+    from pyperun.core.flow import get_flows_root, _find_flow as find_flow
+    from pyperun.core.runner import TREATMENTS_ROOT
 
     if args.what == "flows":
         for f in sorted(get_flows_root().glob("*.json")):
@@ -67,7 +67,7 @@ def cmd_list(args, _parser):
                 print(f"  {d.name}")
     elif args.what == "steps":
         if not args.flow:
-            print("Error: --flow required with 'pymyx list steps'", file=sys.stderr)
+            print("Error: --flow required with 'pyperun list steps'", file=sys.stderr)
             raise SystemExit(1)
         try:
             flow_path = find_flow(args.flow)
@@ -83,7 +83,7 @@ def cmd_list(args, _parser):
 def cmd_init(args, _parser):
     import os
     from pathlib import Path
-    from pymyx.core.pipeline import PIPELINE_STEPS
+    from pyperun.core.pipeline import PIPELINE_STEPS
 
     dataset = args.dataset
     project_dir = Path(args.path).resolve() if args.path else Path.cwd()
@@ -163,14 +163,14 @@ def cmd_init(args, _parser):
         print()
     print("Next steps:")
     print(f"  1. Edit flows/{dataset.lower()}.json (configure params, to_postgres, etc.)")
-    print(f"  2. pymyx flow {dataset.lower()}")
+    print(f"  2. pyperun flow {dataset.lower()}")
 
 
 def cmd_status(_args, _parser):
     from datetime import datetime
     from pathlib import Path
-    from pymyx.core.flow import get_flows_root, _resolve_path
-    from pymyx.core.pipeline import DATASETS_PREFIX, PIPELINE_STEPS, resolve_paths
+    from pyperun.core.flow import get_flows_root, _resolve_path
+    from pyperun.core.pipeline import DATASETS_PREFIX, PIPELINE_STEPS, resolve_paths
 
     external = {s["treatment"] for s in PIPELINE_STEPS if s.get("external")}
 
@@ -228,12 +228,12 @@ def cmd_status(_args, _parser):
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="pymyx",
-        description="PyMyx — IoT time-series processing pipeline",
+        prog="pyperun",
+        description="Pyperun — IoT time-series processing pipeline",
     )
     sub = parser.add_subparsers(dest="command")
 
-    # pymyx flow
+    # pyperun flow
     p_flow = sub.add_parser("flow", help="Run a flow (multi-step pipeline)")
     p_flow.add_argument("flow", help="Flow name (e.g. valvometry_daily)")
     p_flow.add_argument("--from-step", default=None,
@@ -244,7 +244,7 @@ def main():
                         help="Run a single step from the flow")
     _add_common_args(p_flow)
 
-    # pymyx run
+    # pyperun run
     p_run = sub.add_parser("run", help="Run a single treatment")
     p_run.add_argument("treatment", help="Treatment name")
     p_run.add_argument("--input", required=True, help="Input directory")
@@ -252,14 +252,14 @@ def main():
     p_run.add_argument("--params", default="{}", help="JSON params string")
     _add_common_args(p_run)
 
-    # pymyx list
+    # pyperun list
     p_list = sub.add_parser("list", help="List available flows, treatments, or steps")
     p_list.add_argument("what", choices=["flows", "treatments", "steps"],
                         help="What to list")
     p_list.add_argument("--flow", default=None,
                         help="Flow name (required for 'steps')")
 
-    # pymyx init
+    # pyperun init
     p_init = sub.add_parser("init", help="Initialize a new dataset project skeleton")
     p_init.add_argument("dataset", help="Dataset name (e.g. MY-EXPERIMENT)")
     p_init.add_argument("--path", default=None,
@@ -267,7 +267,7 @@ def main():
     p_init.add_argument("--raw", default=None,
                         help="Path to existing raw CSV directory (creates a symlink as 00_raw)")
 
-    # pymyx status
+    # pyperun status
     p_status = sub.add_parser("status", help="Show status of all datasets")
 
     args = parser.parse_args()

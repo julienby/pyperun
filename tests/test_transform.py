@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from pymyx.treatments.transform.run import TRANSFORMS, _resolve_target, run
+from pyperun.treatments.transform.run import TRANSFORMS, _resolve_target, run
 
 
 @pytest.fixture

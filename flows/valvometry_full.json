@@ -10,7 +10,13 @@
         {
             "treatment": "parse",
             "input": "00_raw",
-            "output": "10_parsed"
+            "output": "10_parsed",
+            "params": {
+                "file_name_substitute": [
+                    {"src": "PREMANIP_GRACE", "target": "PREMANIP-GRACE"},
+                    {"src": "premanip_grace", "target": "PREMANIP-GRACE"}
+                ]
+            }
         },
         {
             "treatment": "clean",

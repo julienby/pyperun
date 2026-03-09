@@ -6,7 +6,7 @@ from pathlib import Path
 import jsonlines
 
 
-LOG_PATH = Path("pymyx.log")
+LOG_PATH = Path("pyperun.log")
 
 
 def log_event(

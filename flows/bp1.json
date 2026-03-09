@@ -41,8 +41,18 @@
             "output": "30_transform"
         },
         {
-            "treatment": "aggregate",
+            "treatment": "normalize",
             "input": "30_transform",
+            "output": "35_normalized",
+            "params": {
+                "fit": true,
+                "domain": "bio_signal",
+                "columns": {"*__cbrt_inv": "*__cbrt_inv__norm"}
+            }
+        },
+        {
+            "treatment": "aggregate",
+            "input": "35_normalized",
             "output": "40_aggregated",
             "params": {
                 "windows": ["10s", "60s"]
@@ -63,6 +73,24 @@
                     "m3__raw__mean": "c3",
                     "m4__raw__mean": "c4",
                     "m5__raw__mean": "c5"
+                }
+            }
+        },
+        {
+            "treatment": "exportcsv",
+            "input": "40_aggregated",
+            "output": "63_exportcsv_cbrt_inv_norm",
+            "params": {
+                "aggregation": "10s",
+                "domain": "bio_signal",
+                "tz": "Europe/Paris",
+                "columns": {
+                    "m0__cbrt_inv__norm__mean": {"name": "c0", "decimals": 3},
+                    "m1__cbrt_inv__norm__mean": {"name": "c1", "decimals": 3},
+                    "m2__cbrt_inv__norm__mean": {"name": "c2", "decimals": 3},
+                    "m3__cbrt_inv__norm__mean": {"name": "c3", "decimals": 3},
+                    "m4__cbrt_inv__norm__mean": {"name": "c4", "decimals": 3},
+                    "m5__cbrt_inv__norm__mean": {"name": "c5", "decimals": 3}
                 }
             }
         },

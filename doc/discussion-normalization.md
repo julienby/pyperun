@@ -129,19 +129,19 @@ normalisées → directement comparable entre capteurs.
 
 ### Premier lancement (après période de calibration)
 ```bash
-pymyx flow valvometry_full --output-mode full-replace
+pyperun flow valvometry_full --output-mode full-replace
 # normalize a fit=true → calcule P2/P98 sur toutes les données disponibles
 ```
 
 ### Run quotidien incrémental
 ```bash
-pymyx flow valvometry_daily --last
+pyperun flow valvometry_daily --last
 # normalize a fit=false → charge normalize_params.json, applique
 ```
 
 ### Refit (nouvelles données significatives)
 ```bash
-pymyx flow valvometry_full --output-mode full-replace
+pyperun flow valvometry_full --output-mode full-replace
 # recalcule tout depuis le début
 ```
 

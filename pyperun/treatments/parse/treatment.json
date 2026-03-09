@@ -27,10 +27,7 @@
         },
         "file_name_substitute": {
             "type": "list",
-            "default": [
-                {"src": "PREMANIP_GRACE", "target": "PREMANIP-GRACE"},
-                {"src": "premanip_grace", "target": "PREMANIP-GRACE"}
-            ]
+            "default": []
         }
     }
 }

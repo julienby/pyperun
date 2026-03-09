@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from pymyx.treatments.to_postgres.run import (
+from pyperun.treatments.to_postgres.run import (
     _copy_to_postgres,
     _ensure_columns,
     _ensure_table,
@@ -298,7 +298,7 @@ class TestCopyToPostgres:
 # ---------------------------------------------------------------------------
 
 class TestAggregationFilter:
-    @patch("pymyx.treatments.to_postgres.run.psycopg2")
+    @patch("pyperun.treatments.to_postgres.run.psycopg2")
     def test_aggregation_filter(self, mock_psycopg2, tmp_path):
         """Only the specified aggregation window is processed."""
         ts = ["2026-01-25T00:00:00Z"]
@@ -449,7 +449,7 @@ class TestStructuredColumnFilter:
 # ---------------------------------------------------------------------------
 
 class TestRunMocked:
-    @patch("pymyx.treatments.to_postgres.run.psycopg2")
+    @patch("pyperun.treatments.to_postgres.run.psycopg2")
     def test_run_calls_connect(self, mock_psycopg2, tmp_path):
         """run() connects to postgres and processes files."""
         ts = ["2026-01-25T00:00:00Z", "2026-01-25T00:01:00Z"]
@@ -496,7 +496,7 @@ def _pg_available():
     """Check if a local PostgreSQL is available for testing."""
     try:
         import psycopg2 as pg2
-        conn = pg2.connect(host="localhost", port=5432, dbname="pymyx", user="pymyx", password="pymyx")
+        conn = pg2.connect(host="localhost", port=5432, dbname="pyperun", user="pyperun", password="pyperun")
         conn.close()
         return True
     except Exception:
@@ -514,13 +514,13 @@ class TestIntegration:
     def cleanup_table(self):
         """Drop the test table before and after each test."""
         import psycopg2 as pg2
-        conn = pg2.connect(host="localhost", port=5432, dbname="pymyx", user="pymyx", password="pymyx")
+        conn = pg2.connect(host="localhost", port=5432, dbname="pyperun", user="pyperun", password="pyperun")
         with conn.cursor() as cur:
             cur.execute(f'DROP TABLE IF EXISTS "{self.TABLE_NAME}"')
         conn.commit()
         conn.close()
         yield
-        conn = pg2.connect(host="localhost", port=5432, dbname="pymyx", user="pymyx", password="pymyx")
+        conn = pg2.connect(host="localhost", port=5432, dbname="pyperun", user="pyperun", password="pyperun")
         with conn.cursor() as cur:
             cur.execute(f'DROP TABLE IF EXISTS "{self.TABLE_NAME}"')
         conn.commit()
@@ -535,8 +535,8 @@ class TestIntegration:
             str(tmp_path / "input"),
             str(tmp_path / "output"),
             {
-                "host": "localhost", "port": 5432, "dbname": "pymyx",
-                "user": "pymyx", "password": "pymyx",
+                "host": "localhost", "port": 5432, "dbname": "pyperun",
+                "user": "pyperun", "password": "pyperun",
                 "table_template": self.TABLE_NAME,
                 "mode": mode,
                 "sources": [{"domain": "bio_signal"}],
@@ -545,7 +545,7 @@ class TestIntegration:
 
     def _count_rows(self):
         import psycopg2 as pg2
-        conn = pg2.connect(host="localhost", port=5432, dbname="pymyx", user="pymyx", password="pymyx")
+        conn = pg2.connect(host="localhost", port=5432, dbname="pyperun", user="pyperun", password="pyperun")
         with conn.cursor() as cur:
             cur.execute(f'SELECT COUNT(*) FROM "{self.TABLE_NAME}"')
             count = cur.fetchone()[0]
@@ -554,7 +554,7 @@ class TestIntegration:
 
     def _get_columns(self):
         import psycopg2 as pg2
-        conn = pg2.connect(host="localhost", port=5432, dbname="pymyx", user="pymyx", password="pymyx")
+        conn = pg2.connect(host="localhost", port=5432, dbname="pyperun", user="pyperun", password="pyperun")
         with conn.cursor() as cur:
             cur.execute(
                 "SELECT column_name FROM information_schema.columns WHERE table_name = %s",
@@ -616,8 +616,8 @@ class TestIntegration:
             str(tmp_path / "input"),
             str(tmp_path / "output"),
             {
-                "host": "localhost", "port": 5432, "dbname": "pymyx",
-                "user": "pymyx", "password": "pymyx",
+                "host": "localhost", "port": 5432, "dbname": "pyperun",
+                "user": "pyperun", "password": "pyperun",
                 "table_template": self.TABLE_NAME,
                 "mode": "replace",
                 "sources": [{"domain": "bio_signal"}],

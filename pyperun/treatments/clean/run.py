@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from pymyx.core.filename import build_parquet_path, list_parquet_files, parse_parquet_path
+from pyperun.core.filename import build_parquet_path, list_parquet_files, parse_parquet_path
 
 
 def run(input_dir: str, output_dir: str, params: dict) -> None:

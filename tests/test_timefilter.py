@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone, timedelta
 import pandas as pd
 import pytest
 
-from pymyx.core.timefilter import (
+from pyperun.core.timefilter import (
     extract_date_from_filename,
     filter_files_by_date_range,
     parse_iso_utc,
@@ -193,9 +193,9 @@ class TestResolveLastRange:
 class TestRunnerTimeFilter:
     def test_run_with_time_filter(self, tmp_path, monkeypatch):
         """run_treatment with time_from/time_to only sees files in range."""
-        import pymyx.core.runner as runner_mod
-        from pymyx.core.runner import run_treatment
-        from pymyx.core.logger import LOG_PATH
+        import pyperun.core.runner as runner_mod
+        from pyperun.core.runner import run_treatment
+        from pyperun.core.logger import LOG_PATH
 
         if LOG_PATH.exists():
             LOG_PATH.unlink()
@@ -244,9 +244,9 @@ def run(input_dir, output_dir, params):
 
     def test_replace_mode_scoped(self, tmp_path, monkeypatch):
         """replace mode with time filter only deletes files in range (including subdirs)."""
-        import pymyx.core.runner as runner_mod
-        from pymyx.core.runner import run_treatment
-        from pymyx.core.logger import LOG_PATH
+        import pyperun.core.runner as runner_mod
+        from pyperun.core.runner import run_treatment
+        from pyperun.core.logger import LOG_PATH
 
         if LOG_PATH.exists():
             LOG_PATH.unlink()
@@ -285,9 +285,9 @@ def run(input_dir, output_dir, params):
 
     def test_no_files_in_range_skips(self, tmp_path, monkeypatch):
         """When --from is after all data, treatment is skipped without error."""
-        import pymyx.core.runner as runner_mod
-        from pymyx.core.runner import run_treatment
-        from pymyx.core.logger import LOG_PATH
+        import pyperun.core.runner as runner_mod
+        from pyperun.core.runner import run_treatment
+        from pyperun.core.logger import LOG_PATH
 
         if LOG_PATH.exists():
             LOG_PATH.unlink()

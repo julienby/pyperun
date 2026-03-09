@@ -9,7 +9,7 @@ from pathlib import Path
 import pandas as pd
 import psycopg2
 
-from pymyx.core.filename import list_parquet_files, parse_parquet_path
+from pyperun.core.filename import list_parquet_files, parse_parquet_path
 
 # pandas dtype string → PostgreSQL type
 _PG_TYPE_MAP = {

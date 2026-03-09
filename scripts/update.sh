@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# update.sh — Pull latest code and reinstall pymyx on the server.
+# update.sh — Pull latest code and reinstall pyperun on the server.
 #
 # Run from the project root on the server:
 #   bash scripts/update.sh
 #
 # Or from anywhere:
-#   /path/to/pymyx/scripts/update.sh
+#   /path/to/pyperun/scripts/update.sh
 
 set -euo pipefail
 
-PYMYX_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+PYPERUN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 timestamp() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
 echo "[$(timestamp)] update START"
-echo "Project: $PYMYX_ROOT"
+echo "Project: $PYPERUN_ROOT"
 
-cd "$PYMYX_ROOT"
+cd "$PYPERUN_ROOT"
 
 # 1. Pull latest code
 echo ""
@@ -30,8 +30,8 @@ pip install -e . --quiet
 
 # 3. Verify
 echo ""
-echo ">>> pymyx --help"
-pymyx --help | head -5
+echo ">>> pyperun --help"
+pyperun --help | head -5
 
 echo ""
 echo "[$(timestamp)] update DONE"

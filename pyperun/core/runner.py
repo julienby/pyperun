@@ -9,14 +9,14 @@ import tempfile
 import time
 from pathlib import Path
 
-from pymyx.core.logger import log_event
-from pymyx.core.timefilter import (
+from pyperun.core.logger import log_event
+from pyperun.core.timefilter import (
     extract_date_from_filename,
     filter_files_by_date_range,
     parse_iso_utc,
     resolve_last_range,
 )
-from pymyx.core.validator import load_treatment, merge_params, validate_input_dir
+from pyperun.core.validator import load_treatment, merge_params, validate_input_dir
 
 
 TREATMENTS_ROOT = Path(__file__).resolve().parent.parent / "treatments"
@@ -81,7 +81,7 @@ def _build_filtered_input(input_dir: Path, time_from, time_to) -> Path:
         if f.is_file() and f.suffix in (".csv", ".parquet")
     )
     selected = filter_files_by_date_range(all_files, time_from, time_to)
-    tmpdir = Path(tempfile.mkdtemp(prefix="pymyx_filter_"))
+    tmpdir = Path(tempfile.mkdtemp(prefix="pyperun_filter_"))
     for f in selected:
         rel = f.relative_to(input_dir)
         target = tmpdir / rel
@@ -164,7 +164,7 @@ def run_treatment(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run a PyMyx treatment")
+    parser = argparse.ArgumentParser(description="Run a Pyperun treatment")
     parser.add_argument("--treatment", required=True, help="Treatment name")
     parser.add_argument("--input", required=True, help="Input directory")
     parser.add_argument("--output", required=True, help="Output directory")
