@@ -166,6 +166,37 @@ def cmd_init(args, _parser):
     print(f"  2. pyperun flow {dataset.lower()}")
 
 
+def cmd_upgrade(_args, _parser):
+    import subprocess
+    from pathlib import Path
+
+    project_dir = Path(__file__).resolve().parent.parent
+
+    # Show current git log
+    try:
+        result = subprocess.run(
+            ["git", "log", "--oneline", "-1"],
+            cwd=project_dir, capture_output=True, text=True, check=True,
+        )
+        print(f"Current version: {result.stdout.strip()}")
+    except subprocess.CalledProcessError:
+        print(f"Project directory: {project_dir}")
+
+    answer = input("Upgrade pyperun? [y/N] ").strip().lower()
+    if answer != "y":
+        print("Upgrade cancelled.")
+        return
+
+    print("Pulling latest changes...")
+    subprocess.run(["git", "pull"], cwd=project_dir, check=True)
+
+    print("Reinstalling...")
+    subprocess.run([sys.executable, "-m", "pip", "install", "-e", "."],
+                   cwd=project_dir, check=True)
+
+    print("Done.")
+
+
 def cmd_status(_args, _parser):
     from datetime import datetime
     from pathlib import Path
@@ -270,6 +301,9 @@ def main():
     # pyperun status
     p_status = sub.add_parser("status", help="Show status of all datasets")
 
+    # pyperun upgrade
+    p_upgrade = sub.add_parser("upgrade", help="Pull latest changes and reinstall pyperun")
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -286,6 +320,8 @@ def main():
         cmd_init(args, p_init)
     elif args.command == "status":
         cmd_status(args, p_status)
+    elif args.command == "upgrade":
+        cmd_upgrade(args, p_upgrade)
 
 
 if __name__ == "__main__":

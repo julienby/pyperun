@@ -37,30 +37,36 @@ def _find_flow(name: str) -> Path:
 FLOWS_ROOT = _BUILTIN_FLOWS_ROOT
 
 
+def _step_id(s):
+    """Return the identifier of a step: its 'name' if set, otherwise its 'treatment'."""
+    return s.get("name") or s["treatment"]
+
+
 def _filter_steps(steps, from_step=None, to_step=None, step=None):
     """Filter steps by --from-step, --to-step, or --step.
 
+    Steps can be identified by their 'name' field (if set) or by 'treatment'.
     Returns the filtered list of steps.
     """
-    names = [s["treatment"] for s in steps]
+    ids = [_step_id(s) for s in steps]
 
     if step:
-        if step not in names:
-            raise ValueError(f"Step '{step}' not found in flow. Available: {names}")
-        return [s for s in steps if s["treatment"] == step]
+        if step not in ids:
+            raise ValueError(f"Step '{step}' not found in flow. Available: {ids}")
+        return [s for s in steps if _step_id(s) == step]
 
     start = 0
     end = len(steps)
 
     if from_step:
-        if from_step not in names:
-            raise ValueError(f"Step '{from_step}' not found in flow. Available: {names}")
-        start = names.index(from_step)
+        if from_step not in ids:
+            raise ValueError(f"Step '{from_step}' not found in flow. Available: {ids}")
+        start = ids.index(from_step)
 
     if to_step:
-        if to_step not in names:
-            raise ValueError(f"Step '{to_step}' not found in flow. Available: {names}")
-        end = names.index(to_step) + 1
+        if to_step not in ids:
+            raise ValueError(f"Step '{to_step}' not found in flow. Available: {ids}")
+        end = ids.index(to_step) + 1
 
     return steps[start:end]
 
