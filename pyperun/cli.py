@@ -4,6 +4,26 @@ import sys
 
 from pyperun.core.timefilter import parse_iso_utc
 
+_BANNER = """\
+\033[1;36m  _ __  _   _ _ __   ___ _ __ _   _ _ __
+ | '_ \\| | | | '_ \\ / _ \\ '__| | | | '_ \\
+ | |_) | |_| | |_) |  __/ |  | |_| | | | |
+ | .__/ \\__, | .__/ \\___|_|   \\__,_|_| |_|
+ |_|    |___/|_|                           \033[0m
+\033[2m  IoT time-series processing pipeline\033[0m
+"""
+
+
+def _print_banner():
+    if sys.stdout.isatty():
+        print(_BANNER)
+
+
+class _Parser(argparse.ArgumentParser):
+    def print_help(self, file=None):
+        _print_banner()
+        super().print_help(file)
+
 
 def _add_common_args(parser):
     """Add time filtering and output-mode args shared by flow and run."""
@@ -266,7 +286,7 @@ def cmd_status(_args, _parser):
 
 
 def main():
-    parser = argparse.ArgumentParser(
+    parser = _Parser(
         prog="pyperun",
         description="Pyperun — IoT time-series processing pipeline",
     )
