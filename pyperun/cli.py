@@ -170,14 +170,13 @@ def cmd_upgrade(_args, _parser):
     import subprocess
     from pathlib import Path
 
-    # Find the git project root (works whether installed editable or not)
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--show-toplevel"],
-            capture_output=True, text=True, check=True,
-        )
-        project_dir = Path(result.stdout.strip())
-    except subprocess.CalledProcessError:
+    # Find the git project root by walking up from the installed package location
+    project_dir = None
+    for parent in Path(__file__).resolve().parents:
+        if (parent / ".git").exists():
+            project_dir = parent
+            break
+    if project_dir is None:
         print("Error: could not find git repository root.", file=sys.stderr)
         raise SystemExit(1)
 
