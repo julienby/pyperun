@@ -186,19 +186,64 @@ def cmd_init(args, _parser):
     print(f"  2. pyperun flow {dataset.lower()}")
 
 
-def cmd_upgrade(_args, _parser):
+def cmd_help(_args, _parser):
+    _print_banner()
+    print("""\
+Commands:
+
+  pyperun flow <flow>             Run a full flow
+    --step <name>                 Run a single named step
+    --from-step <name>            Start from this step (inclusive)
+    --to-step <name>              Stop at this step (inclusive)
+    --from / --to                 Time window (ISO 8601)
+    --output-mode                 append | replace | full-replace
+    --last                        Incremental: process only new data
+
+  pyperun run <treatment>         Run a single treatment
+    --input <dir>                 Input directory (required)
+    --output <dir>                Output directory (required)
+    --params '{}'                 JSON params override
+    --from / --to / --last        (same as flow)
+
+  pyperun list flows              List available flows
+  pyperun list treatments         List available treatments
+  pyperun list steps --flow <f>   List steps of a flow
+
+  pyperun init <DATASET>          Scaffold a new dataset
+    --path <dir>                  Target directory (default: cwd)
+    --raw <dir>                   Symlink to existing raw CSV dir
+
+  pyperun status                  Show status of all datasets
+  pyperun upgrade                 Update pyperun via git + pip
+    --path <dir>                  Path to pyperun git repo (if auto-detect fails)
+  pyperun help                    Show this help
+""")
+
+
+def cmd_upgrade(args, _parser):
     import subprocess
     from pathlib import Path
 
-    # Find the git project root by walking up from the installed package location
-    project_dir = None
-    for parent in Path(__file__).resolve().parents:
-        if (parent / ".git").exists():
-            project_dir = parent
-            break
-    if project_dir is None:
-        print("Error: could not find git repository root.", file=sys.stderr)
-        raise SystemExit(1)
+    # Use --path if provided, otherwise walk up from __file__
+    if args.path:
+        project_dir = Path(args.path).resolve()
+        if not (project_dir / ".git").exists():
+            print(f"Error: no git repository found at {project_dir}", file=sys.stderr)
+            raise SystemExit(1)
+    else:
+        project_dir = None
+        for parent in Path(__file__).resolve().parents:
+            if (parent / ".git").exists():
+                project_dir = parent
+                break
+        if project_dir is None:
+            print(
+                "Error: could not find pyperun git repository.\n"
+                "Hint: use --path to specify it:\n"
+                "  pyperun upgrade --path /path/to/pyperun",
+                file=sys.stderr,
+            )
+            raise SystemExit(1)
 
     # Show current version
     try:
@@ -207,6 +252,7 @@ def cmd_upgrade(_args, _parser):
             cwd=project_dir, capture_output=True, text=True, check=True,
         )
         print(f"Current version: {result.stdout.strip()}")
+        print(f"Project directory: {project_dir}")
     except subprocess.CalledProcessError:
         print(f"Project directory: {project_dir}")
 
@@ -331,6 +377,11 @@ def main():
 
     # pyperun upgrade
     p_upgrade = sub.add_parser("upgrade", help="Pull latest changes and reinstall pyperun")
+    p_upgrade.add_argument("--path", default=None,
+                           help="Path to the pyperun git repository (auto-detected if omitted)")
+
+    # pyperun help
+    p_help = sub.add_parser("help", help="Show detailed help for all commands")
 
     args = parser.parse_args()
 
@@ -350,6 +401,8 @@ def main():
         cmd_status(args, p_status)
     elif args.command == "upgrade":
         cmd_upgrade(args, p_upgrade)
+    elif args.command == "help":
+        cmd_help(args, p_help)
 
 
 if __name__ == "__main__":
