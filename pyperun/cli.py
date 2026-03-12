@@ -186,6 +186,64 @@ def cmd_init(args, _parser):
     print(f"  2. pyperun flow {dataset.lower()}")
 
 
+def cmd_delete(args, _parser):
+    import shutil
+    from pathlib import Path
+    from pyperun.core.flow import get_flows_root
+
+    dataset = args.dataset
+    project_dir = Path(args.path).resolve() if args.path else Path.cwd()
+
+    dataset_dir = project_dir / "datasets" / dataset
+    flows_root = get_flows_root()
+
+    # Find flows referencing this dataset
+    flow_files = []
+    for fp in sorted(flows_root.glob("*.json")):
+        try:
+            with open(fp) as f:
+                flow = json.load(f)
+            if flow.get("dataset") == dataset:
+                flow_files.append(fp)
+        except Exception:
+            pass
+
+    # Bail early if nothing to delete
+    if not dataset_dir.exists() and not flow_files:
+        print(f"Nothing found for dataset '{dataset}'.", file=sys.stderr)
+        raise SystemExit(1)
+
+    # Show what will be deleted
+    print(f"Will delete:")
+    if dataset_dir.exists():
+        raw_dir = dataset_dir / "00_raw"
+        if raw_dir.is_symlink():
+            print(f"  datasets/{dataset}/  (00_raw is a symlink -> {raw_dir.resolve()}, source kept)")
+        else:
+            print(f"  datasets/{dataset}/")
+    for fp in flow_files:
+        print(f"  flows/{fp.name}")
+
+    if not args.yes:
+        answer = input("\nConfirm deletion? [y/N] ").strip().lower()
+        if answer != "y":
+            print("Cancelled.")
+            return
+
+    # Delete dataset directory
+    if dataset_dir.exists():
+        raw_dir = dataset_dir / "00_raw"
+        if raw_dir.is_symlink():
+            raw_dir.unlink()
+        shutil.rmtree(dataset_dir)
+        print(f"Deleted datasets/{dataset}/")
+
+    # Delete flow files
+    for fp in flow_files:
+        fp.unlink()
+        print(f"Deleted flows/{fp.name}")
+
+
 def cmd_help(_args, _parser):
     _print_banner()
     print("""\
@@ -212,6 +270,10 @@ Commands:
   pyperun init <DATASET>          Scaffold a new dataset
     --path <dir>                  Target directory (default: cwd)
     --raw <dir>                   Symlink to existing raw CSV dir
+
+  pyperun delete <DATASET>        Delete a dataset and its flow(s)
+    --path <dir>                  Project directory (default: cwd)
+    -y, --yes                     Skip confirmation prompt
 
   pyperun status                  Show status of all datasets
   pyperun upgrade                 Update pyperun via git + pip
@@ -265,7 +327,7 @@ def cmd_upgrade(args, _parser):
     subprocess.run(["git", "pull"], cwd=project_dir, check=True)
 
     print("Reinstalling...")
-    subprocess.run([sys.executable, "-m", "pip", "install", "."],
+    subprocess.run([sys.executable, "-m", "pip", "install", "--break-system-packages", "."],
                    cwd=project_dir, check=True)
 
     print("Done.")
@@ -372,6 +434,14 @@ def main():
     p_init.add_argument("--raw", default=None,
                         help="Path to existing raw CSV directory (creates a symlink as 00_raw)")
 
+    # pyperun delete
+    p_delete = sub.add_parser("delete", help="Delete a dataset and its associated flow(s)")
+    p_delete.add_argument("dataset", help="Dataset name (e.g. MY-EXPERIMENT)")
+    p_delete.add_argument("--path", default=None,
+                          help="Project directory (default: current directory)")
+    p_delete.add_argument("-y", "--yes", action="store_true",
+                          help="Skip confirmation prompt")
+
     # pyperun status
     p_status = sub.add_parser("status", help="Show status of all datasets")
 
@@ -397,6 +467,8 @@ def main():
         cmd_list(args, p_list)
     elif args.command == "init":
         cmd_init(args, p_init)
+    elif args.command == "delete":
+        cmd_delete(args, p_delete)
     elif args.command == "status":
         cmd_status(args, p_status)
     elif args.command == "upgrade":
