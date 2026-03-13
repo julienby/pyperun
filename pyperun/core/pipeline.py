@@ -10,7 +10,8 @@ PIPELINE_STEPS = [
     {"treatment": "normalize",   "input": "30_transform",  "output": "35_normalized"},
     {"treatment": "aggregate",   "input": "35_normalized", "output": "40_aggregated"},
     {"treatment": "to_postgres", "input": "40_aggregated", "output": "60_postgres", "external": True},
-    {"treatment": "exportcsv",   "input": "40_aggregated", "output": "61_exportcsv"},
+    {"treatment": "exportcsv",      "input": "40_aggregated", "output": "61_exportcsv"},
+    {"treatment": "exportparquet",  "input": "40_aggregated", "output": "62_exportparquet"},
 ]
 
 # Quick lookup: treatment name → step dict

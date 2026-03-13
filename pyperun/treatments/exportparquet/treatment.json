@@ -1,0 +1,26 @@
+{
+    "name": "exportparquet",
+    "description": "Export aggregated parquet data to a single parquet file per device with column selection and optional renaming",
+    "params": {
+        "aggregation": {
+            "type": "str",
+            "default": "10s"
+        },
+        "domain": {
+            "type": "str",
+            "default": "bio_signal"
+        },
+        "from": {
+            "type": "str",
+            "default": ""
+        },
+        "to": {
+            "type": "str",
+            "default": ""
+        },
+        "columns": {
+            "type": "dict",
+            "default": {}
+        }
+    }
+}
