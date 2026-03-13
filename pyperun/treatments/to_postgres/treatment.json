@@ -10,6 +10,8 @@
         "table_prefix": {"type": "str", "default": ""},
         "table_template": {"type": "str", "default": "{experience}__{step}__{aggregation}"},
         "mode": {"type": "str", "default": "append"},
+        "from": {"type": "str", "default": ""},
+        "to": {"type": "str", "default": ""},
         "aggregations": {"type": "list", "default": []},
         "sources": {
             "type": "list",
