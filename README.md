@@ -98,11 +98,11 @@ pyperun flow my-experiment --step clean               # single step
 pyperun flow my-experiment --from-step resample       # from a step to the end
 pyperun flow my-experiment --from-step clean --to-step aggregate  # range
 
-pyperun flow my-experiment --from 2026-02-01 --to 2026-02-10      # time filter
-pyperun flow my-experiment --last                                   # incremental (delta only)
+pyperun flow my-experiment --from 2026-02-01T00:00:00Z --to 2026-02-10T00:00:00Z  # time filter
+pyperun flow my-experiment --from 2026-02-01T00:00:00Z             # from a date to the latest
 
-pyperun flow my-experiment --output-mode replace                    # overwrite output for the time range
-pyperun flow my-experiment --output-mode full-replace               # wipe all outputs and reprocess
+pyperun flow my-experiment --output-mode replace                    # delete files in window then write (default)
+pyperun flow my-experiment --output-mode reset                      # wipe all outputs then reprocess
 pyperun flow my-experiment --dry-run                                # preview without running
 ```
 
@@ -409,7 +409,7 @@ curl -X DELETE http://localhost:5000/api/datasets/MY-EXPERIMENT
 # Lancer un flow
 curl -X POST http://localhost:5000/api/run/my-experiment \
      -H "Content-Type: application/json" \
-     -d '{"last": true}'
+     -d '{"from": "2026-04-01T00:00:00Z", "to": "2026-04-27T00:00:00Z"}'
 # → {"run_id": "a3f9b2c1", "flow": "my-experiment", "status": "started"}
 
 # Suivre la progression (poll toutes les 2s jusqu'à status = success|error)
@@ -423,11 +423,10 @@ Optional POST body fields:
 |-------|------|-------------|
 | `from` | ISO 8601 string | Start of time window |
 | `to` | ISO 8601 string | End of time window |
-| `last` | bool | Incremental mode (mutually exclusive with from/to) |
 | `step` | string | Run a single named step |
 | `from_step` | string | Start from this step |
 | `to_step` | string | Stop at this step |
-| `output_mode` | string | `append` (default), `replace`, `full-replace` |
+| `output_mode` | string | `replace` (default), `reset` |
 
 ---
 
@@ -462,7 +461,7 @@ pyperun/                          ← framework (this repo)
     runner.py                     ← runs a single treatment
     pipeline.py                   ← treatment → directory registry
     validator.py                  ← param validation + merging
-    timefilter.py                 ← time range filtering, --last logic
+    timefilter.py                 ← time range filtering by date range
     filename.py                   ← parquet naming conventions
     logger.py                     ← jsonlines event log (logs/pyperun.log)
     api.py                        ← Python API (list_flows, get_status, list_runs, ...)
@@ -498,7 +497,7 @@ my-project/                       ← your experiment repo
 
 ## Production — incremental cron
 
-Run the pipeline automatically every hour, processing only new data:
+Run the pipeline automatically every hour with a rolling 2-hour window:
 
 ```bash
 crontab -e
@@ -517,7 +516,7 @@ my-flow-daily
 0 * * * * /path/to/pyperun/scripts/run_scheduled_flows.sh
 ```
 
-Both scripts use `--last` to detect the delta between input and output and skip runs when nothing is new.
+Both scripts compute explicit `--from`/`--to` date windows at runtime to avoid reprocessing old data.
 
 ---
 

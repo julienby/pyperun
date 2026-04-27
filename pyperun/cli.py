@@ -31,17 +31,12 @@ def _add_common_args(parser):
                         help="Start of time window (ISO 8601)")
     parser.add_argument("--to", dest="time_to", default=None,
                         help="End of time window (ISO 8601)")
-    parser.add_argument("--output-mode", default="append", choices=["append", "replace", "full-replace"],
-                        help="Output mode: replace or append (default: append)")
-    parser.add_argument("--last", action="store_true",
-                        help="Incremental: process only the delta since last output")
+    parser.add_argument("--output-mode", default="replace", choices=["replace", "reset"],
+                        help="Output mode: replace (default) | reset (wipe all outputs)")
 
 
 def _validate_common_args(parser, args):
     """Validate common args and return (time_from, time_to)."""
-    if args.last and (args.time_from or args.time_to):
-        parser.error("--last is mutually exclusive with --from/--to")
-
     time_from = parse_iso_utc(args.time_from) if args.time_from else None
     time_to = parse_iso_utc(args.time_to) if args.time_to else None
 
@@ -67,7 +62,7 @@ def cmd_flow(args, parser):
             parser.error(f"--params: invalid JSON: {e}")
 
     run_flow(args.flow, time_from=time_from, time_to=time_to,
-             output_mode=args.output_mode, last=args.last,
+             output_mode=args.output_mode,
              from_step=args.from_step, to_step=args.to_step, step=args.step,
              dry_run=args.dry_run, params_override=params_override)
 
@@ -582,8 +577,7 @@ Commands:
     --from-step <name>            Start from this step (inclusive)
     --to-step <name>              Stop at this step (inclusive)
     --from / --to                 Time window (ISO 8601)
-    --output-mode                 append | replace | full-replace
-    --last                        Incremental: process only new data
+    --output-mode                 replace (default) | reset
     --dry-run                     Print execution plan without running
     --params <JSON>               Override params for every step (e.g. '{"mode": "reset"}')
 

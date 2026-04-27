@@ -218,15 +218,14 @@ def api_run_flow(flow_name):
     {
         "from":        "2026-01-01T00:00:00Z",
         "to":          "2026-04-01T00:00:00Z",
-        "last":        false,
         "step":        null,
         "from_step":   null,
         "to_step":     null,
-        "output_mode": "append"
+        "output_mode": "replace"
     }
 
     Réponse 202 :
-    {"run_id": "a3f9b2c1", "flow": "valvometry_daily", "status": "started"}
+    {"run_id": "a3f9b2c1", "flow": "my-experiment", "status": "started"}
 
     Polling : GET /api/runs/<run_id> toutes les 2s jusqu'à status=success|error.
     """
@@ -236,9 +235,6 @@ def api_run_flow(flow_name):
 
     body = request.get_json(silent=True) or {}
 
-    # Validation des args mutuellement exclusifs
-    if body.get("last") and (body.get("from") or body.get("to")):
-        abort(400, "'last' is mutually exclusive with 'from'/'to'")
     if body.get("step") and (body.get("from_step") or body.get("to_step")):
         abort(400, "'step' is mutually exclusive with 'from_step'/'to_step'")
 
@@ -257,11 +253,10 @@ def api_run_flow(flow_name):
                 flow_name,
                 time_from=time_from,
                 time_to=time_to,
-                last=body.get("last", False),
                 step=body.get("step"),
                 from_step=body.get("from_step"),
                 to_step=body.get("to_step"),
-                output_mode=body.get("output_mode", "append"),
+                output_mode=body.get("output_mode", "replace"),
                 run_id=run_id,
             )
         except SystemExit:

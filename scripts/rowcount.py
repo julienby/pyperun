@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Show row counts per day and per step for a dataset within a date range.
 
+Stats are broken down by sensor (one table per sensor file).
+
 Usage:
     python scripts/rowcount.py DATASET --from 2026-04-10 --to 2026-04-23
 """
@@ -36,12 +38,34 @@ def count_rows(path: Path) -> int:
     return 0
 
 
-def collect(dataset_path: Path, step: str, date_from: str, date_to: str) -> dict[str, int]:
+def extract_sensor(stem: str, dataset_name: str) -> str | None:
+    """Extract the sensor name from a file stem.
+
+    Handles two naming conventions:
+      - new:  DATASET__SENSOR__step__date  (double-underscore separated)
+      - old:  DATASET_SENSOR_step_date     (single-underscore separated)
+    """
+    if "__" in stem:
+        parts = stem.split("__")
+        if len(parts) >= 2 and parts[0] == dataset_name:
+            return parts[1]
+    else:
+        prefix = dataset_name + "_"
+        if stem.startswith(prefix):
+            remainder = stem[len(prefix):]
+            return remainder.split("_")[0]
+    return None
+
+
+def collect(
+    dataset_path: Path, step: str, dataset_name: str, date_from: str, date_to: str
+) -> dict[str, dict[str, int]]:
+    """Return rows_by_sensor[sensor][day] = row_count."""
     step_path = dataset_path / step
     if not step_path.exists():
         return {}
 
-    rows_by_day: dict[str, int] = defaultdict(int)
+    rows: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for f in step_path.rglob("*"):
         if f.suffix not in (".parquet", ".csv"):
             continue
@@ -51,17 +75,48 @@ def collect(dataset_path: Path, step: str, date_from: str, date_to: str) -> dict
         day = m.group(1)
         if day < date_from or day > date_to:
             continue
-        rows_by_day[day] += count_rows(f)
+        sensor = extract_sensor(f.stem, dataset_name)
+        if sensor is None:
+            sensor = "(unknown)"
+        rows[sensor][day] += count_rows(f)
 
-    return dict(rows_by_day)
+    return {s: dict(d) for s, d in rows.items()}
+
+
+def print_sensor_table(
+    sensor: str,
+    steps: list[str],
+    step_labels: list[str],
+    data: dict[str, dict[str, dict[str, int]]],
+    col_w: int,
+) -> None:
+    all_days: set[str] = set()
+    for step in steps:
+        all_days |= data[step].get(sensor, {}).keys()
+
+    if not all_days:
+        return
+
+    print(f"\n=== {sensor} ===")
+    header = f"{'Day':<12}" + "".join(f"{lbl:>{col_w}}" for lbl in step_labels)
+    print(header)
+    print("-" * len(header))
+
+    for day in sorted(all_days):
+        row = f"{day:<12}"
+        for step in steps:
+            n = data[step].get(sensor, {}).get(day)
+            row += f"{n if n is not None else '-':>{col_w}}"
+        print(row)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Row counts per day and step")
+    parser = argparse.ArgumentParser(description="Row counts per sensor, day, and step")
     parser.add_argument("dataset", help="Dataset name (e.g. Expo_pre_GRACE_2)")
     parser.add_argument("--from", dest="date_from", required=True, help="Start date YYYY-MM-DD")
     parser.add_argument("--to", dest="date_to", required=True, help="End date YYYY-MM-DD")
     parser.add_argument("--steps", nargs="+", default=None, help="Steps to show (default: all)")
+    parser.add_argument("--sensor", help="Show only this sensor")
     args = parser.parse_args()
 
     root = Path(__file__).parent.parent / "datasets" / args.dataset
@@ -72,34 +127,29 @@ def main():
     steps = args.steps or STEPS
     steps = [s for s in steps if (root / s).exists()]
 
-    # Collect all data
-    data: dict[str, dict[str, int]] = {}  # step -> day -> rows
-    all_days: set[str] = set()
+    # Collect all data: step -> sensor -> day -> rows
+    data: dict[str, dict[str, dict[str, int]]] = {}
+    all_sensors: set[str] = set()
     for step in steps:
-        data[step] = collect(root, step, args.date_from, args.date_to)
-        all_days |= data[step].keys()
+        data[step] = collect(root, step, args.dataset, args.date_from, args.date_to)
+        all_sensors |= data[step].keys()
 
-    if not all_days:
+    if not all_sensors:
         print("No data found for this date range.")
         sys.exit(0)
 
-    days = sorted(all_days)
+    sensors = sorted(all_sensors)
+    if args.sensor:
+        sensors = [s for s in sensors if s == args.sensor]
+        if not sensors:
+            print(f"Sensor '{args.sensor}' not found.", file=sys.stderr)
+            sys.exit(1)
 
-    # Column widths
-    step_labels = [s.split("_", 1)[-1] if "_" in s else s for s in steps]  # strip leading digits
-    col_w = max(10, *(len(s) for s in step_labels)) + 2
+    step_labels = [s.split("_", 1)[-1] if "_" in s else s for s in steps]
+    col_w = max(10, *(len(lbl) for lbl in step_labels)) + 2
 
-    # Header
-    header = f"{'Day':<12}" + "".join(f"{s:>{col_w}}" for s in step_labels)
-    print(header)
-    print("-" * len(header))
-
-    for day in days:
-        row = f"{day:<12}"
-        for step in steps:
-            n = data[step].get(day)
-            row += f"{n if n is not None else '-':>{col_w}}"
-        print(row)
+    for sensor in sensors:
+        print_sensor_table(sensor, steps, step_labels, data, col_w)
 
 
 if __name__ == "__main__":

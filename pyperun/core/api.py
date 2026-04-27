@@ -160,11 +160,10 @@ def run_flow(
     *,
     time_from: str | None = None,
     time_to: str | None = None,
-    last: bool = False,
     from_step: str | None = None,
     to_step: str | None = None,
     step: str | None = None,
-    output_mode: str = "append",
+    output_mode: str = "replace",
     params_override: dict | None = None,
 ) -> str:
     """Launch a flow synchronously and return the run_id.
@@ -176,11 +175,10 @@ def run_flow(
     name            : Flow name (e.g. "valvometry-daily")
     time_from       : ISO 8601 start of time window (e.g. "2026-01-01T00:00:00Z")
     time_to         : ISO 8601 end of time window
-    last            : If True, process only new data since last output (incremental)
     from_step       : Start execution from this step (inclusive)
     to_step         : Stop execution at this step (inclusive)
     step            : Run a single step only
-    output_mode     : "append" | "replace" | "full-replace" (default: "append")
+    output_mode     : "replace" (default) | "reset" (wipe all outputs)
     params_override : Dict of param overrides applied to every step
 
     Returns
@@ -196,8 +194,6 @@ def run_flow(
     from pyperun.core.flow import run_flow as _run_flow
     from pyperun.core.timefilter import parse_iso_utc
 
-    if last and (time_from or time_to):
-        raise ValueError("last=True is mutually exclusive with time_from/time_to")
     if step and (from_step or to_step):
         raise ValueError("step is mutually exclusive with from_step/to_step")
 
@@ -211,7 +207,6 @@ def run_flow(
         name,
         time_from=tf,
         time_to=tt,
-        last=last,
         from_step=from_step,
         to_step=to_step,
         step=step,

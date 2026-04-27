@@ -6,7 +6,7 @@ from pathlib import Path
 from pyperun.core.logger import new_run_id
 from pyperun.core.pipeline import DATASETS_PREFIX, is_external, resolve_paths
 from pyperun.core.runner import run_treatment
-from pyperun.core.timefilter import parse_iso_utc, resolve_last_range
+from pyperun.core.timefilter import parse_iso_utc
 
 
 _BUILTIN_FLOWS_ROOT = Path(__file__).resolve().parent.parent.parent / "flows"
@@ -15,15 +15,13 @@ _BUILTIN_FLOWS_ROOT = Path(__file__).resolve().parent.parent.parent / "flows"
 _META_PARAMS = {"from", "to"}
 
 
-def _print_dry_run(name: str, steps: list, time_from, time_to, last: bool) -> None:
+def _print_dry_run(name: str, steps: list, time_from, time_to) -> None:
     import json
     from pyperun.core.runner import resolve_treatment_dir
     from pyperun.core.validator import load_treatment, merge_params
 
     print(f"\n\033[1m[dry-run] Flow: {name} ({len(steps)} steps)\033[0m")
-    if last:
-        print(f"  Global filter: --last (resolved at runtime)")
-    elif time_from or time_to:
+    if time_from or time_to:
         tf = time_from.isoformat() if time_from else "..."
         tt = time_to.isoformat() if time_to else "..."
         print(f"  Global filter: {tf} → {tt}")
@@ -134,8 +132,7 @@ def run_flow(
     name: str,
     time_from=None,
     time_to=None,
-    output_mode: str = "append",
-    last: bool = False,
+    output_mode: str = "replace",
     from_step: str | None = None,
     to_step: str | None = None,
     step: str | None = None,
@@ -202,8 +199,8 @@ def run_flow(
     # Filter steps
     steps = _filter_steps(steps, from_step=from_step, to_step=to_step, step=step)
 
-    # full-replace: wipe all output directories before running
-    if output_mode == "full-replace":
+    # reset: wipe all output directories before running
+    if output_mode == "reset":
         for s in steps:
             if "output" not in s:
                 continue
@@ -217,29 +214,8 @@ def run_flow(
                     print(f"[flow] Cleared {s['output']} ({count} files)")
         output_mode = "replace"
 
-    # Resolve --last from the first step (parse input/output)
-    if last:
-        first = steps[0]
-        try:
-            time_from, time_to = resolve_last_range(
-                Path(first["input"]), Path(first["output"])
-            )
-        except ValueError as exc:
-            # Pipeline is up-to-date. External steps manage their own state
-            # (e.g. to_postgres uses max_ts from DB) — run them without time filter.
-            external_steps = [s for s in steps if is_external(s["treatment"])]
-            if not external_steps:
-                print(f"[flow] {exc}")
-                return
-            print(f"[flow] pipeline up-to-date, running {len(external_steps)} external step(s)")
-            steps = external_steps
-            time_from = time_to = None
-        else:
-            if time_from is not None:
-                print(f"[flow] --last resolved to {time_from.isoformat()} .. {time_to.isoformat()}")
-
     if dry_run:
-        _print_dry_run(name, steps, time_from, time_to, last)
+        _print_dry_run(name, steps, time_from, time_to)
         return ""
 
     if run_id is None:
@@ -282,10 +258,8 @@ def main():
                         help="Start of time window (ISO 8601)")
     parser.add_argument("--to", dest="time_to", default=None,
                         help="End of time window (ISO 8601)")
-    parser.add_argument("--output-mode", default="append", choices=["append", "replace", "full-replace"],
-                        help="Output mode: replace or append (default: append)")
-    parser.add_argument("--last", action="store_true",
-                        help="Incremental: process only the delta since last output")
+    parser.add_argument("--output-mode", default="replace", choices=["replace", "reset"],
+                        help="Output mode: replace (default) | reset (wipe all outputs)")
     parser.add_argument("--from-step", default=None,
                         help="Start from this treatment step (inclusive)")
     parser.add_argument("--to-step", default=None,
@@ -294,9 +268,6 @@ def main():
                         help="Run a single step from the flow")
     args = parser.parse_args()
 
-    # Validate mutual exclusion
-    if args.last and (args.time_from or args.time_to):
-        parser.error("--last is mutually exclusive with --from/--to")
     if args.step and (args.from_step or args.to_step):
         parser.error("--step is mutually exclusive with --from-step/--to-step")
 
@@ -308,7 +279,7 @@ def main():
         parser.error("--from must be before --to")
 
     run_flow(args.flow, time_from=time_from, time_to=time_to,
-             output_mode=args.output_mode, last=args.last,
+             output_mode=args.output_mode,
              from_step=args.from_step, to_step=args.to_step, step=args.step)
 
 

@@ -22,6 +22,7 @@ def make_csv(tmp_path):
 @pytest.fixture
 def default_params():
     return {
+        "format": "kv_csv",
         "delimiter": ";",
         "tz": "UTC",
         "timestamp_column": "ts",
@@ -122,6 +123,66 @@ class TestDtypeCoercion:
         env = [f for f in output_dir.rglob("*.parquet") if "environment" in str(f)]
         df = pd.read_parquet(env[0])
         assert df["outdoor_temp"].tolist() == [18.94, pd.NA]
+
+
+class TestIncrementalAppend:
+    """Verify that a second parse run appends to existing parquet without data loss."""
+
+    def test_second_run_appends_new_rows(self, make_csv, tmp_path, default_params):
+        """First run writes 2 rows; second run adds 2 new rows → 4 rows total."""
+        output_dir = tmp_path / "output"
+
+        make_csv(
+            "EXP__dev01__2026-01-20.csv",
+            [
+                "2026-01-20T10:00:00Z;m0:10;m1:20",
+                "2026-01-20T10:00:01Z;m0:15;m1:25",
+            ],
+        )
+        run(str(tmp_path / "input"), str(output_dir), default_params)
+
+        # Overwrite input with a delta (2 new rows, same day)
+        make_csv(
+            "EXP__dev01__2026-01-20.csv",
+            [
+                "2026-01-20T10:00:02Z;m0:20;m1:30",
+                "2026-01-20T10:00:03Z;m0:25;m1:35",
+            ],
+        )
+        run(str(tmp_path / "input"), str(output_dir), default_params)
+
+        bio = [f for f in output_dir.rglob("*.parquet") if "bio_signal" in str(f)]
+        df = pd.read_parquet(bio[0])
+        assert len(df) == 4
+        assert df["m0"].tolist() == [10, 15, 20, 25]
+
+    def test_second_run_deduplicates_overlapping_rows(self, make_csv, tmp_path, default_params):
+        """Overlapping rows on the boundary are deduped (no duplicates)."""
+        output_dir = tmp_path / "output"
+
+        make_csv(
+            "EXP__dev01__2026-01-20.csv",
+            [
+                "2026-01-20T10:00:00Z;m0:10;m1:20",
+                "2026-01-20T10:00:01Z;m0:15;m1:25",
+            ],
+        )
+        run(str(tmp_path / "input"), str(output_dir), default_params)
+
+        # Delta overlaps on the last row (same ts)
+        make_csv(
+            "EXP__dev01__2026-01-20.csv",
+            [
+                "2026-01-20T10:00:01Z;m0:15;m1:25",
+                "2026-01-20T10:00:02Z;m0:20;m1:30",
+            ],
+        )
+        run(str(tmp_path / "input"), str(output_dir), default_params)
+
+        bio = [f for f in output_dir.rglob("*.parquet") if "bio_signal" in str(f)]
+        df = pd.read_parquet(bio[0])
+        assert len(df) == 3
+        assert df["m0"].tolist() == [10, 15, 20]
 
 
 class TestResolveColumns:

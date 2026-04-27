@@ -1,5 +1,5 @@
 #!/bin/bash
-# run_scheduled_flows.sh — Run all flows listed in scheduled_flows.txt
+# run_scheduled_flows.sh — Run all flows listed in scheduled_flows.txt with yesterday's data.
 # Called by cron, e.g. every hour.
 #
 # Usage: ./run_scheduled_flows.sh [--flows-file path/to/file]
@@ -28,8 +28,13 @@ if [[ ! -f "$FLOWS_FILE" ]]; then
     exit 1
 fi
 
+# Compute yesterday and today in UTC
+yesterday=$(date -u -d "yesterday" +%Y-%m-%d)
+today=$(date -u +%Y-%m-%d)
+
 log "=== Scheduled run start ==="
 log "Flows file: $FLOWS_FILE"
+log "Window: ${yesterday}T00:00:00Z → ${today}T00:00:00Z"
 
 while IFS= read -r line; do
     # Skip empty lines and comments
@@ -39,7 +44,10 @@ while IFS= read -r line; do
     log_file="$LOG_DIR/${flow}.log"
 
     log "Running flow: $flow"
-    if pyperun flow "$flow" --last >> "$log_file" 2>&1; then
+    if pyperun flow "$flow" \
+        --from "${yesterday}T00:00:00Z" \
+        --to   "${today}T00:00:00Z" \
+        >> "$log_file" 2>&1; then
         log "  OK: $flow"
     else
         log "  FAILED: $flow (see $log_file)"

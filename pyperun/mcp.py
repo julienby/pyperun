@@ -107,11 +107,10 @@ def run_flow(
     name: str,
     time_from: str | None = None,
     time_to: str | None = None,
-    last: bool = False,
     from_step: str | None = None,
     to_step: str | None = None,
     step: str | None = None,
-    output_mode: str = "append",
+    output_mode: str = "replace",
     params_override: str | None = None,
 ) -> dict:
     """Launch a flow and wait for it to complete. Returns a run summary.
@@ -124,11 +123,10 @@ def run_flow(
     name            : Flow name, e.g. "valvometry-daily" (use list_flows to discover)
     time_from       : ISO 8601 start filter, e.g. "2026-01-01T00:00:00Z"
     time_to         : ISO 8601 end filter
-    last            : If True, only process new data since last output (incremental)
     from_step       : Run from this step onwards (inclusive)
     to_step         : Run up to this step (inclusive)
     step            : Run a single step only
-    output_mode     : "append" (default) | "replace" | "full-replace"
+    output_mode     : "replace" (default) | "reset" (wipe all outputs then replace)
     params_override : JSON string of params applied to every step,
                       e.g. '{"freq": "1s"}' — pass null to use flow defaults
 
@@ -148,7 +146,6 @@ def run_flow(
             name,
             time_from=time_from,
             time_to=time_to,
-            last=last,
             from_step=from_step,
             to_step=to_step,
             step=step,

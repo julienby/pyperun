@@ -1,7 +1,5 @@
 import json
-import os
-import time
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, timezone
 
 import pandas as pd
 import pytest
@@ -10,7 +8,6 @@ from pyperun.core.timefilter import (
     extract_date_from_filename,
     filter_files_by_date_range,
     parse_iso_utc,
-    resolve_last_range,
 )
 
 
@@ -113,154 +110,6 @@ class TestFilterFiles:
         ])
         result = filter_files_by_date_range(files, None, None)
         assert len(result) == 2
-
-
-# --- resolve_last_range ---
-
-class TestResolveLastRange:
-    def _write_parquet(self, path, timestamps):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame({
-            "timestamp": pd.to_datetime(timestamps, utc=True),
-            "value": range(len(timestamps)),
-        })
-        df.to_parquet(path, index=False)
-
-    def test_first_run_empty_output(self, tmp_path):
-        inp = tmp_path / "input"
-        out = tmp_path / "output"
-        inp.mkdir()
-        out.mkdir()
-        self._write_parquet(
-            inp / "domain=bio" / "EXP__dev__parsed__2026-01-25.parquet",
-            ["2026-01-25T10:00:00Z"],
-        )
-        tf, tt = resolve_last_range(inp, out)
-        assert tf is None
-        assert tt is None
-
-    def test_up_to_date(self, tmp_path):
-        inp = tmp_path / "input"
-        out = tmp_path / "output"
-        inp.mkdir()
-        out.mkdir()
-        self._write_parquet(
-            inp / "domain=bio" / "EXP__dev__parsed__2026-01-25.parquet",
-            ["2026-01-25T10:00:00Z"],
-        )
-        self._write_parquet(
-            out / "domain=bio" / "EXP__dev__clean__2026-01-25.parquet",
-            ["2026-01-25T10:00:00Z"],
-        )
-        with pytest.raises(ValueError, match="already up-to-date"):
-            resolve_last_range(inp, out)
-
-    def test_delta(self, tmp_path):
-        inp = tmp_path / "input"
-        out = tmp_path / "output"
-        inp.mkdir()
-        out.mkdir()
-        self._write_parquet(
-            inp / "domain=bio" / "EXP__dev__parsed__2026-01-25.parquet",
-            ["2026-01-25T08:00:00Z", "2026-01-25T10:00:00Z", "2026-01-25T14:00:00Z"],
-        )
-        self._write_parquet(
-            out / "domain=bio" / "EXP__dev__clean__2026-01-25.parquet",
-            ["2026-01-25T10:00:00Z"],
-        )
-        tf, tt = resolve_last_range(inp, out)
-        assert tf.hour == 10
-        assert tf.minute == 0
-        assert tt.hour == 14
-
-    def test_minimum_one_hour_window(self, tmp_path):
-        inp = tmp_path / "input"
-        out = tmp_path / "output"
-        inp.mkdir()
-        out.mkdir()
-        self._write_parquet(
-            inp / "domain=bio" / "EXP__dev__parsed__2026-01-25.parquet",
-            ["2026-01-25T10:30:00Z"],
-        )
-        self._write_parquet(
-            out / "domain=bio" / "EXP__dev__clean__2026-01-25.parquet",
-            ["2026-01-25T10:00:00Z"],
-        )
-        tf, tt = resolve_last_range(inp, out)
-        assert (tt - tf) >= timedelta(hours=1)
-
-
-# --- resolve_last_range with CSV-only input ---
-
-class TestResolveLastRangeCsvInput:
-    def _write_parquet(self, path, timestamps):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        df = pd.DataFrame({
-            "timestamp": pd.to_datetime(timestamps, utc=True),
-            "value": range(len(timestamps)),
-        })
-        df.to_parquet(path, index=False)
-
-    def _write_csv(self, path, mtime=None):
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("2026-04-07T10:00:00Z;m0:42\n")
-        if mtime is not None:
-            os.utime(path, (mtime, mtime))
-
-    def test_intraday_csv_update_is_detected(self, tmp_path):
-        """CSV updated intra-day (same date, newer mtime) must not raise up-to-date."""
-        inp = tmp_path / "input"
-        out = tmp_path / "output"
-
-        t_now = time.time()
-        # Output parquet: last data timestamp = 2 hours ago (last successful run)
-        t_last_run = t_now - 7200
-        ts_last_run = datetime.fromtimestamp(t_last_run, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        self._write_parquet(
-            out / "domain=bio" / "EXP__dev__parsed__2026-04-07.parquet",
-            [ts_last_run],
-        )
-
-        # CSV updated 1 hour ago (after the last run) → new data available
-        t_csv = t_now - 3600
-        self._write_csv(inp / "EXP__dev_2026-04-07.csv", mtime=t_csv)
-
-        tf, tt = resolve_last_range(inp, out)
-        assert tf is not None
-        assert tt is not None
-
-    def test_csv_not_updated_raises_up_to_date(self, tmp_path):
-        """CSV mtime older than output data timestamp → already up-to-date."""
-        inp = tmp_path / "input"
-        out = tmp_path / "output"
-
-        t_now = time.time()
-        # CSV was last written 2 hours ago
-        t_csv = t_now - 7200
-        self._write_csv(inp / "EXP__dev_2026-04-07.csv", mtime=t_csv)
-
-        # Output parquet: data timestamp = 1 hour ago (processed after the CSV)
-        t_last_run = t_now - 3600
-        ts_last_run = datetime.fromtimestamp(t_last_run, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        self._write_parquet(
-            out / "domain=bio" / "EXP__dev__parsed__2026-04-07.parquet",
-            [ts_last_run],
-        )
-
-        with pytest.raises(ValueError, match="already up-to-date"):
-            resolve_last_range(inp, out)
-
-    def test_first_run_csv_only(self, tmp_path):
-        """First run with CSV-only input and empty output returns (None, None)."""
-        inp = tmp_path / "input"
-        out = tmp_path / "output"
-        out.mkdir()
-
-        self._write_csv(inp / "EXP__dev_2026-04-07.csv")
-
-        tf, tt = resolve_last_range(inp, out)
-        assert tf is None
-        assert tt is None
 
 
 # --- Integration: runner with --from/--to ---

@@ -14,7 +14,6 @@ from pyperun.core.timefilter import (
     extract_date_from_filename,
     filter_files_by_date_range,
     parse_iso_utc,
-    resolve_last_range,
 )
 from pyperun.core.validator import load_treatment, merge_params, validate_input_dir
 
@@ -176,36 +175,17 @@ def main():
                         help="Start of time window (ISO 8601)")
     parser.add_argument("--to", dest="time_to", default=None,
                         help="End of time window (ISO 8601)")
-    parser.add_argument("--output-mode", default="append", choices=["replace", "append"],
-                        help="Output mode: replace or append (default: append)")
-    parser.add_argument("--last", action="store_true",
-                        help="Incremental: process only the delta since last output")
+    parser.add_argument("--output-mode", default="replace", choices=["replace", "reset"],
+                        help="Output mode: replace (default) | reset (wipe all outputs)")
     args = parser.parse_args()
-
-    # Validate mutual exclusion
-    if args.last and (args.time_from or args.time_to):
-        parser.error("--last is mutually exclusive with --from/--to")
 
     params = json.loads(args.params)
 
     time_from = parse_iso_utc(args.time_from) if args.time_from else None
     time_to = parse_iso_utc(args.time_to) if args.time_to else None
 
-    # Validate from < to when both provided
     if time_from and time_to and time_from > time_to:
         parser.error("--from must be before --to")
-
-    # Resolve --last
-    if args.last:
-        try:
-            time_from, time_to = resolve_last_range(
-                Path(args.input), Path(args.output)
-            )
-        except ValueError as exc:
-            print(f"  [{args.treatment}] {exc}")
-            sys.exit(0)
-        if time_from is not None:
-            print(f"  [{args.treatment}] --last resolved to {time_from.isoformat()} .. {time_to.isoformat()}")
 
     run_treatment(args.treatment, args.input, args.output, params,
                   time_from=time_from, time_to=time_to, output_mode=args.output_mode)

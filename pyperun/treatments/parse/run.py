@@ -74,6 +74,14 @@ def run(input_dir: str, output_dir: str, params: dict) -> None:
                     domain=domain_name,
                 )
                 out_file = build_parquet_path(parts, out_path)
+                if out_file.exists():
+                    import pyarrow.parquet as pq
+                    existing = pq.read_table(out_file).to_pandas()
+                    day_df = (
+                        pd.concat([existing, day_df], ignore_index=True)
+                        .drop_duplicates(subset=["ts"])
+                        .sort_values("ts")
+                    )
                 day_df.to_parquet(out_file, index=False)
 
     count = len(list(out_path.rglob("*.parquet")))
