@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 
 from pyperun.core.logger import new_run_id
-from pyperun.core.pipeline import DATASETS_PREFIX, is_external, resolve_paths
+from pyperun.core.pipeline import DATASETS_PREFIX, resolve_paths
 from pyperun.core.runner import run_treatment
 from pyperun.core.timefilter import parse_iso_utc
 
@@ -230,13 +230,8 @@ def run_flow(
             params = {**params, **params_override}
 
         # Per-step time range: step-level from/to overrides flow-level (funnel).
-        # External steps manage their own state (e.g. max_ts in DB) — no time filter.
-        if is_external(treatment):
-            step_time_from = None
-            step_time_to = None
-        else:
-            step_time_from = s.get("_time_from", time_from)
-            step_time_to = s.get("_time_to", time_to)
+        step_time_from = s.get("_time_from", time_from)
+        step_time_to = s.get("_time_to", time_to)
 
         print(f"[flow] Step {i}/{len(steps)}: {treatment}")
         try:
