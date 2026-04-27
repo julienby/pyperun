@@ -17,6 +17,16 @@ FLOW="${1:?Usage: $0 <flow-name>}"
 cd "$PYPERUN_ROOT"
 mkdir -p "$(dirname "$LOGFILE")"
 
+if ! command -v pyperun &>/dev/null; then
+    for venv in .venv venv env; do
+        if [ -f "$PYPERUN_ROOT/$venv/bin/activate" ]; then
+            # shellcheck disable=SC1090
+            source "$PYPERUN_ROOT/$venv/bin/activate"
+            break
+        fi
+    done
+fi
+
 timestamp() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
 # 2-hour rolling window, floored to the hour boundary

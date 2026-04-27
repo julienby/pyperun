@@ -21,6 +21,16 @@ LOG_FILE="$LOG_DIR/${FLOW}.log"
 
 mkdir -p "$LOG_DIR"
 
+if ! command -v pyperun &>/dev/null; then
+    for venv in .venv venv env; do
+        if [ -f "$PYPERUN_DIR/$venv/bin/activate" ]; then
+            # shellcheck disable=SC1090
+            source "$PYPERUN_DIR/$venv/bin/activate"
+            break
+        fi
+    done
+fi
+
 log() {
     echo "[$(date '+%Y-%m-%dT%H:%M:%S')] $*" | tee -a "$LOG_FILE"
 }

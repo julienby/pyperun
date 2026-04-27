@@ -11,6 +11,17 @@ FLOW="${1:?Usage: $0 <flow-name>}"
 PYPERUN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PYPERUN_ROOT"
 
+# Activate virtualenv if present and pyperun not already in PATH
+if ! command -v pyperun &>/dev/null; then
+    for venv in .venv venv env; do
+        if [ -f "$PYPERUN_ROOT/$venv/bin/activate" ]; then
+            # shellcheck disable=SC1090
+            source "$PYPERUN_ROOT/$venv/bin/activate"
+            break
+        fi
+    done
+fi
+
 timestamp() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
 today=$(date -u +%Y-%m-%d)
