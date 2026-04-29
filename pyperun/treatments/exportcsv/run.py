@@ -105,17 +105,22 @@ def run(input_dir: str, output_dir: str, params: dict) -> None:
         output_cols = ["Time"] + list(col_names_used.values())
         result = result[output_cols]
 
-        # Merge with existing CSV when replaying a time window
-        if from_dt is not None or to_dt is not None:
+        # Merge with existing CSV when running in a time-scoped window
+        # __time_range is injected by the runner when --from/--to are set
+        tr = params.get("__time_range") or {}
+        merge_from = pd.Timestamp(tr["from"], tz="UTC").tz_convert(tz).tz_localize(None) if tr.get("from") else None
+        merge_to = pd.Timestamp(tr["to"], tz="UTC").tz_convert(tz).tz_localize(None) if tr.get("to") else None
+
+        if merge_from is not None or merge_to is not None:
             existing = _find_existing_csv(out_path, experience, device_id, aggregation)
             if existing:
                 old = pd.read_csv(existing, sep=";", dtype=str)
-                old_ts = pd.to_datetime(old["Time"]).dt.tz_localize(tz)
-                mask = pd.Series([True] * len(old))
-                if from_dt is not None:
-                    mask &= old_ts >= from_dt.tz_convert(tz)
-                if to_dt is not None:
-                    mask &= old_ts < to_dt.tz_convert(tz)
+                old_ts = pd.to_datetime(old["Time"])
+                mask = pd.Series([True] * len(old), index=old.index)
+                if merge_from is not None:
+                    mask &= old_ts >= merge_from
+                if merge_to is not None:
+                    mask &= old_ts < merge_to
                 kept = old[~mask]
                 result = pd.concat([kept, result], ignore_index=True)
                 result = result.sort_values("Time").reset_index(drop=True)
