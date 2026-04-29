@@ -6,6 +6,12 @@ import pandas as pd
 from pyperun.core.filename import list_parquet_files, parse_parquet_path
 
 
+def _find_existing_csv(out_path: Path, experience: str, device_id: str, aggregation: str) -> Path | None:
+    pattern = f"{experience}_{device_id}_aggregated_{aggregation}_*.csv"
+    matches = list(out_path.glob(pattern))
+    return matches[0] if matches else None
+
+
 def run(input_dir: str, output_dir: str, params: dict) -> None:
     in_path = Path(input_dir)
     out_path = Path(output_dir)
@@ -99,11 +105,27 @@ def run(input_dir: str, output_dir: str, params: dict) -> None:
         output_cols = ["Time"] + list(col_names_used.values())
         result = result[output_cols]
 
-        # Build output filename with actual date range from data
+        # Merge with existing CSV when replaying a time window
+        if from_dt is not None or to_dt is not None:
+            existing = _find_existing_csv(out_path, experience, device_id, aggregation)
+            if existing:
+                old = pd.read_csv(existing, sep=";", dtype=str)
+                old_ts = pd.to_datetime(old["Time"]).dt.tz_localize(tz)
+                mask = pd.Series([True] * len(old))
+                if from_dt is not None:
+                    mask &= old_ts >= from_dt.tz_convert(tz)
+                if to_dt is not None:
+                    mask &= old_ts < to_dt.tz_convert(tz)
+                kept = old[~mask]
+                result = pd.concat([kept, result], ignore_index=True)
+                result = result.sort_values("Time").reset_index(drop=True)
+                existing.unlink()
+
+        # Build output filename from actual data range
         first_date = result["Time"].iloc[0][:10]
         last_date = result["Time"].iloc[-1][:10]
         filename = f"{experience}_{device_id}_aggregated_{aggregation}_{first_date}_{last_date}.csv"
         out_file = out_path / filename
 
         result.to_csv(out_file, sep=";", index=False)
-        print(f"  [exportnour] {device_id}: {len(result)} rows -> {out_file.name}")
+        print(f"  [exportcsv] {device_id}: {len(result)} rows -> {out_file.name}")
