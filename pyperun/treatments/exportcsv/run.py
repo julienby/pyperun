@@ -43,9 +43,8 @@ def run(input_dir: str, output_dir: str, params: dict) -> None:
             experience = parts.experience
 
     if not by_device:
-        raise FileNotFoundError(
-            f"No parquet files found matching domain={domain}, aggregation={aggregation}"
-        )
+        print(f"  [exportcsv] No files matching domain={domain}, aggregation={aggregation}, skipping")
+        return
 
     total_files = sum(len(v) for v in by_device.values())
     print(f"  [exportnour] Found {total_files} files, {len(by_device)} devices (domain={domain}, agg={aggregation})")
