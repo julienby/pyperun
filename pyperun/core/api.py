@@ -280,90 +280,112 @@ def get_status() -> list[dict]:
                 "external": treatment in external,
             })
 
-        result.append({
+        entry = {
             "flow": name,
             "dataset": dataset,
             "status": "up-to-date" if all_ok else "incomplete",
             "steps": steps_out,
-        })
+            "last_run": get_flow_summary(name),
+        }
+        result.append(entry)
 
     return result
 
 
 # ---------------------------------------------------------------------------
-# Run history (log polling — Option A)
+# Run history — agent triage layer (latest.json) + event search (daily logs)
 # ---------------------------------------------------------------------------
 
-def _read_log() -> list[dict]:
-    """Read all entries from pyperun.log. Returns [] if the file does not exist."""
-    from pyperun.core.logger import LOG_PATH
-    if not LOG_PATH.exists():
+def get_flow_summary(flow: str) -> dict | None:
+    """Return the latest run summary for a flow, or None if never run.
+
+    Reads logs/flows/<flow>/latest.json — O(1), agent-friendly triage.
+    Fields: flow, run_id, status, ts_start, ts_end, duration_ms,
+            steps_total, steps_ok, steps_failed, error?
+    """
+    from pyperun.core.logger import LOGS_ROOT
+    path = LOGS_ROOT / "flows" / flow / "latest.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text())
+    except Exception:
+        return None
+
+
+def list_flow_summaries() -> list[dict]:
+    """Return latest run summaries for all flows that have ever run.
+
+    Reads one latest.json per flow — single-pass, agent/MCP triage endpoint.
+    Results sorted by ts_start descending (most recent first).
+    """
+    from pyperun.core.logger import LOGS_ROOT
+    summaries = []
+    flows_dir = LOGS_ROOT / "flows"
+    if not flows_dir.exists():
         return []
-    entries = []
-    with open(LOG_PATH) as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                entries.append(json.loads(line))
-            except json.JSONDecodeError:
-                pass
-    return entries
+    for f in sorted(flows_dir.glob("*/latest.json")):
+        try:
+            summaries.append(json.loads(f.read_text()))
+        except Exception:
+            pass
+    summaries.sort(key=lambda s: s.get("ts_start", ""), reverse=True)
+    return summaries
 
 
 def list_runs(limit: int = 50) -> list[dict]:
-    """Return recent pipeline runs as a list of summary dicts.
+    """Return recent flow runs as summary dicts (backed by latest.json).
 
-    Each entry: {run_id, flow, started_at, finished_at, status, n_steps, error}
-    status is 'running' | 'success' | 'error'
-    Results are sorted by start time descending (most recent first).
+    Each entry: run_id, flow, status, ts_start, ts_end, duration_ms,
+                steps_total, steps_ok, steps_failed, error?
     """
-    entries = _read_log()
-
-    # Group by run_id
-    runs: dict[str, dict] = {}
-    for e in entries:
-        rid = e.get("run_id")
-        if not rid:
-            continue
-        if rid not in runs:
-            runs[rid] = {
-                "run_id": rid,
-                "flow": e.get("flow"),
-                "started_at": e.get("ts"),
-                "finished_at": None,
-                "status": "running",
-                "n_steps_done": 0,
-                "error": None,
-            }
-        status = e.get("status")
-        if status == "success":
-            runs[rid]["n_steps_done"] += 1
-            runs[rid]["finished_at"] = e.get("ts")
-            runs[rid]["status"] = "running"  # updated below when all done
-        elif status == "error":
-            runs[rid]["status"] = "error"
-            runs[rid]["error"] = e.get("error")
-            runs[rid]["finished_at"] = e.get("ts")
-
-    # A run with no error and a finished_at is 'success'
-    for r in runs.values():
-        if r["status"] == "running" and r["finished_at"] is not None:
-            r["status"] = "success"
-
-    # Sort by started_at descending
-    sorted_runs = sorted(runs.values(), key=lambda r: r["started_at"] or "", reverse=True)
-    return sorted_runs[:limit]
+    return list_flow_summaries()[:limit]
 
 
-def get_run_events(run_id: str) -> list[dict]:
-    """Return all log events for a specific run_id.
+def get_run_events(run_id: str, flow: str | None = None) -> list[dict]:
+    """Return all treatment-level log events for a run_id.
 
-    Each event: {ts, treatment, status, input_dir, output_dir, duration_ms, error, ...}
-    Returns [] if run_id is not found or log does not exist.
+    Searches daily .jsonl logs. Provide flow for a faster targeted search;
+    omit to search across all flows and misc logs.
+
+    Each event: ts, treatment, status, input_dir, output_dir, duration_ms?, error?, ...
+    Returns [] if not found.
     """
-    return [e for e in _read_log() if e.get("run_id") == run_id]
+    from pyperun.core.logger import LOGS_ROOT
+
+    def _search_dir(d: Path) -> list[dict]:
+        events = []
+        for log_file in sorted(d.glob("*.jsonl"), reverse=True):
+            try:
+                with open(log_file) as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            e = json.loads(line)
+                            if e.get("run_id") == run_id:
+                                events.append(e)
+                        except json.JSONDecodeError:
+                            pass
+            except OSError:
+                pass
+        return events
+
+    if flow:
+        return _search_dir(LOGS_ROOT / "flows" / flow)
+
+    events = []
+    flows_dir = LOGS_ROOT / "flows"
+    if flows_dir.exists():
+        for flow_dir in sorted(flows_dir.iterdir()):
+            if flow_dir.is_dir():
+                events.extend(_search_dir(flow_dir))
+    misc_dir = LOGS_ROOT / "misc"
+    if misc_dir.exists():
+        events.extend(_search_dir(misc_dir))
+    events.sort(key=lambda e: e.get("ts", ""))
+    return events
 
 
 # ---------------------------------------------------------------------------
@@ -383,6 +405,10 @@ def list_presets(project_dir: str | None = None) -> list[dict]:
         "parquet": {
             "description": "Core pipeline → exportparquet",
             "steps": ["parse", "clean", "resample", "transform", "normalize", "aggregate", "exportparquet"],
+        },
+        "duckdb": {
+            "description": "Core pipeline → exportduckdb (analytical DuckDB database)",
+            "steps": ["parse", "clean", "resample", "transform", "normalize", "aggregate", "exportduckdb"],
         },
         "full": {
             "description": "Full pipeline (all steps)",

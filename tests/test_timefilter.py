@@ -119,10 +119,10 @@ class TestRunnerTimeFilter:
         """run_treatment with time_from/time_to only sees files in range."""
         import pyperun.core.runner as runner_mod
         from pyperun.core.runner import run_treatment
-        from pyperun.core.logger import LOG_PATH
-
-        if LOG_PATH.exists():
-            LOG_PATH.unlink()
+        from pyperun.core.logger import _log_path
+        _misc_log = _log_path(None)
+        if _misc_log.exists():
+            _misc_log.unlink()
 
         # Create a treatment that lists input parquet files (in domain= subdirs)
         treatment_dir = tmp_path / "treatments" / "lister"
@@ -163,17 +163,17 @@ def run(input_dir, output_dir, params):
         result = json.loads((output_dir / "files.json").read_text())
         assert result == ["EXP__dev__parsed__2026-01-25.parquet"]
 
-        if LOG_PATH.exists():
-            LOG_PATH.unlink()
+        if _misc_log.exists():
+            _misc_log.unlink()
 
     def test_replace_mode_scoped(self, tmp_path, monkeypatch):
         """replace mode with time filter only deletes files in range (including subdirs)."""
         import pyperun.core.runner as runner_mod
         from pyperun.core.runner import run_treatment
-        from pyperun.core.logger import LOG_PATH
-
-        if LOG_PATH.exists():
-            LOG_PATH.unlink()
+        from pyperun.core.logger import _log_path
+        _misc_log = _log_path(None)
+        if _misc_log.exists():
+            _misc_log.unlink()
 
         treatment_dir = tmp_path / "treatments" / "noop"
         treatment_dir.mkdir(parents=True)
@@ -204,17 +204,17 @@ def run(input_dir, output_dir, params):
         assert "EXP__dev__clean__2026-01-24.parquet" in remaining
         assert "EXP__dev__clean__2026-01-25.parquet" not in remaining
 
-        if LOG_PATH.exists():
-            LOG_PATH.unlink()
+        if _misc_log.exists():
+            _misc_log.unlink()
 
     def test_no_files_in_range_skips(self, tmp_path, monkeypatch):
         """When --from is after all data, treatment is skipped without error."""
         import pyperun.core.runner as runner_mod
         from pyperun.core.runner import run_treatment
-        from pyperun.core.logger import LOG_PATH
-
-        if LOG_PATH.exists():
-            LOG_PATH.unlink()
+        from pyperun.core.logger import _log_path
+        _misc_log = _log_path(None)
+        if _misc_log.exists():
+            _misc_log.unlink()
 
         treatment_dir = tmp_path / "treatments" / "noop"
         treatment_dir.mkdir(parents=True)
@@ -237,5 +237,5 @@ def run(input_dir, output_dir, params):
         run_treatment("noop", str(input_dir), str(output_dir), time_from=tf)
         # Should not raise — just skip
 
-        if LOG_PATH.exists():
-            LOG_PATH.unlink()
+        if _misc_log.exists():
+            _misc_log.unlink()

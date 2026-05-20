@@ -1,9 +1,10 @@
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
-from pyperun.core.logger import new_run_id
+from pyperun.core.logger import cleanup_old_logs, new_run_id, write_flow_summary
 from pyperun.core.pipeline import DATASETS_PREFIX, resolve_paths
 from pyperun.core.runner import run_treatment
 from pyperun.core.timefilter import parse_iso_utc
@@ -220,6 +221,16 @@ def run_flow(
 
     if run_id is None:
         run_id = new_run_id()
+
+    try:
+        cleanup_old_logs()
+    except Exception:
+        pass
+
+    ts_start = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    t0 = time.perf_counter()
+    steps_ok = 0
+
     print(f"[flow] Starting '{name}' ({len(steps)} steps)  run_id={run_id}")
     for i, s in enumerate(steps, 1):
         treatment = s["treatment"]
@@ -238,10 +249,17 @@ def run_flow(
             run_treatment(treatment, input_dir, output_dir, params,
                           time_from=step_time_from, time_to=step_time_to,
                           output_mode=output_mode, flow=name, run_id=run_id)
+            steps_ok += 1
         except Exception as exc:
+            duration_ms = (time.perf_counter() - t0) * 1000
+            write_flow_summary(name, run_id, "error", ts_start, duration_ms,
+                               i, steps_ok, 1, error=str(exc))
             print(f"[flow] FAILED at step {i} ({treatment}): {exc}", file=sys.stderr)
-            raise SystemExit(1)
+            raise RuntimeError(str(exc)) from exc
 
+    duration_ms = (time.perf_counter() - t0) * 1000
+    write_flow_summary(name, run_id, "success", ts_start, duration_ms,
+                       len(steps), steps_ok, 0)
     print(f"[flow] Completed '{name}' successfully  run_id={run_id}")
     return run_id
 

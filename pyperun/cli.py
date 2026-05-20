@@ -61,10 +61,13 @@ def cmd_flow(args, parser):
         except json.JSONDecodeError as e:
             parser.error(f"--params: invalid JSON: {e}")
 
-    run_flow(args.flow, time_from=time_from, time_to=time_to,
-             output_mode=args.output_mode,
-             from_step=args.from_step, to_step=args.to_step, step=args.step,
-             dry_run=args.dry_run, params_override=params_override)
+    try:
+        run_flow(args.flow, time_from=time_from, time_to=time_to,
+                 output_mode=args.output_mode,
+                 from_step=args.from_step, to_step=args.to_step, step=args.step,
+                 dry_run=args.dry_run, params_override=params_override)
+    except RuntimeError:
+        raise SystemExit(1)
 
 
 def cmd_new(args, _parser):
@@ -608,6 +611,11 @@ Commands:
     --path <dir>                  Project directory (default: cwd)
     -y, --yes                     Skip confirmation prompt
 
+  pyperun logs                    Show last run for all flows
+  pyperun logs <flow>             Show last run summary for one flow
+  pyperun logs <flow> --run <id>  Show all events for a specific run
+    --format json                 Machine-readable output
+
   pyperun status                  Show status of all datasets
   pyperun upgrade                 Update pyperun via git + pip
     --path <dir>                  Path to pyperun git repo (if auto-detect fails)
@@ -715,8 +723,70 @@ def cmd_status(args, _parser):
             last = s["last_modified"] or "-"
             print(f"  {s['treatment']:<14s} {s['output']:<18s} {s['n_files']:>4d} files   last: {last}")
 
-        print(f"  -> {entry['status']}")
+        lr = entry.get("last_run")
+        if lr:
+            color = "\033[32m" if lr["status"] == "success" else "\033[31m"
+            dur = f"{lr['duration_ms'] / 1000:.1f}s"
+            print(f"  -> {entry['status']}  |  last run: {color}{lr['status']}\033[0m  {lr['ts_end'][:16]}  {dur}")
+        else:
+            print(f"  -> {entry['status']}")
         print()
+
+
+def cmd_logs(args, _parser):
+    from pyperun.core.api import get_flow_summary, get_run_events, list_flow_summaries
+
+    if args.run_id:
+        data = get_run_events(args.run_id, flow=args.flow or None)
+        if args.format == "json":
+            print(json.dumps(data, indent=2, ensure_ascii=False))
+            return
+        if not data:
+            print(f"No events found for run_id '{args.run_id}'.")
+            return
+        for e in data:
+            status = e.get("status", "?")
+            treatment = e.get("treatment", "?")
+            ts = e.get("ts", "?")
+            dur = f"  {e['duration_ms']:.0f}ms" if "duration_ms" in e else ""
+            err = f"  ERROR: {e['error']}" if "error" in e else ""
+            print(f"  {ts}  {treatment:<14s}  {status}{dur}{err}")
+        return
+
+    if args.flow:
+        data = get_flow_summary(args.flow)
+        if args.format == "json":
+            print(json.dumps(data, indent=2, ensure_ascii=False))
+            return
+        if data is None:
+            print(f"No log found for flow '{args.flow}'.")
+            return
+        status = data["status"]
+        color = "\033[32m" if status == "success" else "\033[31m"
+        print(f"\n{color}{data['flow']}\033[0m  run_id={data['run_id']}")
+        print(f"  status:    {status}")
+        print(f"  started:   {data['ts_start']}")
+        print(f"  ended:     {data['ts_end']}")
+        print(f"  duration:  {data['duration_ms'] / 1000:.1f}s")
+        print(f"  steps:     {data['steps_ok']}/{data['steps_total']} ok")
+        if "error" in data:
+            print(f"  error:     {data['error']}")
+        print()
+        return
+
+    data = list_flow_summaries()
+    if args.format == "json":
+        print(json.dumps(data, indent=2, ensure_ascii=False))
+        return
+    if not data:
+        print("No flow logs found.")
+        return
+    for s in data:
+        status = s["status"]
+        color = "\033[32m" if status == "success" else "\033[31m"
+        dur = f"{s['duration_ms'] / 1000:.1f}s"
+        steps = f"{s['steps_ok']}/{s['steps_total']}"
+        print(f"  {color}{status:<8s}\033[0m  {s['flow']:<24s}  {s['ts_end'][:16]}  {dur:>7s}  {steps} steps")
 
 
 def main():
@@ -801,6 +871,15 @@ def main():
     p_status.add_argument("--format", choices=["text", "json"], default="text",
                           help="Output format (default: text)")
 
+    # pyperun logs
+    p_logs = sub.add_parser("logs", help="Show flow run logs")
+    p_logs.add_argument("flow", nargs="?", default=None,
+                        help="Flow name (omit for all flows)")
+    p_logs.add_argument("--run", dest="run_id", default=None,
+                        help="Run ID to inspect events")
+    p_logs.add_argument("--format", choices=["text", "json"], default="text",
+                        help="Output format (default: text)")
+
     # pyperun upgrade
     p_upgrade = sub.add_parser("upgrade", help="Pull latest changes and reinstall pyperun")
     p_upgrade.add_argument("--path", default=None,
@@ -839,6 +918,8 @@ def main():
         cmd_import(args, p_import)
     elif args.command == "status":
         cmd_status(args, p_status)
+    elif args.command == "logs":
+        cmd_logs(args, p_logs)
     elif args.command == "upgrade":
         cmd_upgrade(args, p_upgrade)
     elif args.command == "help":

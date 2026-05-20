@@ -1,21 +1,28 @@
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 
 import jsonlines
 
 
-LOG_PATH = Path("logs/pyperun.log")
-
+LOGS_ROOT = Path("logs")
+LOG_RETENTION_DAYS = 30
 
 _REDACT_KEYS = {"password"}
 
 
 def new_run_id() -> str:
-    """Generate a short unique run identifier (8 hex chars)."""
     import os
     return os.urandom(4).hex()
+
+
+def _log_path(flow: str | None) -> Path:
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    if flow:
+        return LOGS_ROOT / "flows" / flow / f"{today}.jsonl"
+    return LOGS_ROOT / "misc" / f"{today}.jsonl"
 
 
 def log_event(
@@ -52,6 +59,52 @@ def log_event(
         entry["duration_ms"] = round(duration_ms, 1)
     if error is not None:
         entry["error"] = error
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with jsonlines.open(LOG_PATH, mode="a") as writer:
+    path = _log_path(flow)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with jsonlines.open(path, mode="a") as writer:
         writer.write(entry)
+
+
+def write_flow_summary(
+    flow: str,
+    run_id: str,
+    status: str,
+    ts_start: str,
+    duration_ms: float,
+    steps_total: int,
+    steps_ok: int,
+    steps_failed: int,
+    error: str | None = None,
+) -> None:
+    """Write/overwrite logs/flows/<flow>/latest.json — the agent-readable triage layer."""
+    summary = {
+        "flow": flow,
+        "run_id": run_id,
+        "status": status,
+        "ts_start": ts_start,
+        "ts_end": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "duration_ms": round(duration_ms, 1),
+        "steps_total": steps_total,
+        "steps_ok": steps_ok,
+        "steps_failed": steps_failed,
+    }
+    if error is not None:
+        summary["error"] = error
+    path = LOGS_ROOT / "flows" / flow / "latest.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(summary, indent=2))
+
+
+def cleanup_old_logs(retention_days: int = LOG_RETENTION_DAYS) -> None:
+    """Delete .jsonl files older than retention_days. Never touches latest.json."""
+    import os
+    cutoff = time.time() - retention_days * 86400
+    for search_dir in (LOGS_ROOT / "flows", LOGS_ROOT / "misc"):
+        if not search_dir.exists():
+            continue
+        for f in search_dir.rglob("*.jsonl"):
+            try:
+                if os.path.getmtime(f) < cutoff:
+                    f.unlink()
+            except OSError:
+                pass

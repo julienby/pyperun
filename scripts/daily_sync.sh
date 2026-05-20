@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # daily_sync.sh — Run a pyperun flow for the current day every hour.
-# At 5am, also consolidates yesterday (J-1).
+# At 5am, also consolidates yesterday (D-1).
 #
 # Crontab (one entry only):
 #   0 * * * * /path/to/pyperun/scripts/daily_sync.sh my-flow >> /var/log/pyperun_daily.log 2>&1
@@ -16,13 +16,16 @@ export PATH="$HOME/.local/bin:$PYPERUN_ROOT/.venv/bin:$PYPERUN_ROOT/venv/bin:$PA
 
 timestamp() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
+LOCKFILE="/tmp/daily_sync_${FLOW}.lock"
+exec {lock_fd}>"$LOCKFILE"
+flock -n "$lock_fd" || { echo "--- [$(timestamp)] Already running (lock: $LOCKFILE), exiting ---"; exit 0; }
+
 today=$(date -u +%Y-%m-%d)
 tomorrow=$(date -u -d "tomorrow" +%Y-%m-%d)
-yesterday=$(date -u -d "yesterday" +%Y-%m-%d)
 hour=$(date -u +%H)
 
-# At 5am: consolidate yesterday (J-1)
 if [ "$hour" = "05" ]; then
+    yesterday=$(date -u -d "yesterday" +%Y-%m-%d)
     echo "--- [$(timestamp)] CONSOLIDATE  flow=$FLOW  ${yesterday} → ${today} ---"
     pyperun flow "$FLOW" \
         --from "${yesterday}T00:00:00Z" \

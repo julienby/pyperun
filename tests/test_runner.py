@@ -7,7 +7,9 @@ import jsonlines
 import pytest
 
 from pyperun.core.runner import run_treatment
-from pyperun.core.logger import LOG_PATH
+from pyperun.core.logger import _log_path
+
+_MISC_LOG = _log_path(None)
 
 
 @pytest.fixture
@@ -41,12 +43,12 @@ def run(input_dir, output_dir, params):
 
 @pytest.fixture(autouse=True)
 def clean_log():
-    """Remove pyperun.log before each test to isolate log assertions."""
-    if LOG_PATH.exists():
-        LOG_PATH.unlink()
+    """Remove today's misc log before each test to isolate log assertions."""
+    if _MISC_LOG.exists():
+        _MISC_LOG.unlink()
     yield
-    if LOG_PATH.exists():
-        LOG_PATH.unlink()
+    if _MISC_LOG.exists():
+        _MISC_LOG.unlink()
 
 
 def test_run_with_defaults(tmp_treatment, tmp_path, monkeypatch):
@@ -95,8 +97,8 @@ def test_log_contains_success(tmp_treatment, tmp_path, monkeypatch):
 
     run_treatment("echo", str(input_dir), str(output_dir))
 
-    assert LOG_PATH.exists()
-    with jsonlines.open(LOG_PATH) as reader:
+    assert _MISC_LOG.exists()
+    with jsonlines.open(_MISC_LOG) as reader:
         events = list(reader)
 
     statuses = [e["status"] for e in events]

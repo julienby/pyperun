@@ -1,0 +1,33 @@
+{
+    "name": "exportduckdb",
+    "description": "Export aggregated data to a single DuckDB file merging all devices. One table per aggregation window (data_10s, data_60s, etc.) in long format: (ts, device_id, sensor_columns...). Columns are the union of all devices — NULLs for absent sensors.",
+    "input_format": "Parquet files: `domain=*/EXPERIENCE__DEVICE__aggregated__WINDOW__YYYY-MM-DD.parquet`",
+    "output_format": "Single DuckDB file: `<dataset>.duckdb` with one table per window + `devices` metadata table",
+    "params": {
+        "aggregations": {
+            "type": "list",
+            "default": ["10s", "60s", "5min", "1h"],
+            "description": "List of aggregation windows to include as tables (e.g. ['10s', '60s', '5min', '1h'])"
+        },
+        "from": {
+            "type": "str",
+            "default": null,
+            "description": "Start datetime filter (ISO 8601, inclusive). If null, no lower bound."
+        },
+        "to": {
+            "type": "str",
+            "default": null,
+            "description": "End datetime filter (ISO 8601, exclusive). If null, no upper bound."
+        },
+        "db_name": {
+            "type": "str",
+            "default": null,
+            "description": "Output filename (without .duckdb extension). Defaults to the dataset name derived from parquet filenames."
+        },
+        "metadata": {
+            "type": "dict",
+            "default": {},
+            "description": "Per-device metadata: {device_id: {name, location, type, notes}}. Merged into the `devices` table."
+        }
+    }
+}

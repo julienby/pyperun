@@ -79,23 +79,36 @@ def describe_treatment(name: str) -> dict:
 
 
 @mcp.tool()
-def list_runs(limit: int = 20) -> list[dict]:
-    """Return recent pipeline runs (most recent first).
+def list_flow_summaries() -> list[dict]:
+    """Return the last run summary for every flow (O(1) triage, agent-friendly).
 
-    Each run: {run_id, flow, started_at, finished_at, status, n_steps_done, error}.
-    status is 'running' | 'success' | 'error'.
+    Reads logs/flows/*/latest.json — one file per flow.
+    Each entry: {flow, run_id, status, ts_start, ts_end, duration_ms, steps_total, steps_ok, steps_failed, error?}.
+    status is 'success' | 'error'. Sorted by ts_start descending.
+    Use this as the first call to assess pipeline health without parsing event logs.
     """
-    return api.list_runs(limit=limit)
+    return api.list_flow_summaries()
 
 
 @mcp.tool()
-def get_run_events(run_id: str) -> list[dict]:
-    """Return all log events for a specific run.
+def get_flow_summary(flow: str) -> dict | None:
+    """Return the last run summary for a single flow, or null if never run.
+
+    Reads logs/flows/<flow>/latest.json — O(1).
+    Fields: flow, run_id, status, ts_start, ts_end, duration_ms, steps_total, steps_ok, steps_failed, error?.
+    """
+    return api.get_flow_summary(flow)
+
+
+@mcp.tool()
+def get_run_events(run_id: str, flow: str | None = None) -> list[dict]:
+    """Return all log events for a specific run (drill-down after triage).
 
     Each event: {ts, treatment, status, input_dir, output_dir, duration_ms, error, ...}
-    Use this to inspect step-by-step results or diagnose failures.
+    Provide flow name for a faster targeted search; omit to search all flows.
+    Use list_flow_summaries / get_flow_summary first, then call this only for failures.
     """
-    return api.get_run_events(run_id)
+    return api.get_run_events(run_id, flow=flow)
 
 
 # ---------------------------------------------------------------------------
@@ -154,15 +167,13 @@ def run_flow(
         )
     except (FileNotFoundError, ValueError) as exc:
         return {"error": str(exc), "run_id": None, "status": "error"}
-    except SystemExit:
-        # Flow raised SystemExit on step failure — get events for context
-        events = api.get_run_events(run_id) if run_id else []
-        error_event = next((e for e in reversed(events) if e.get("status") == "error"), None)
+    except RuntimeError as exc:
+        summary = api.get_flow_summary(name)
         return {
-            "run_id": run_id,
+            "run_id": summary["run_id"] if summary else None,
             "status": "error",
-            "n_steps_done": sum(1 for e in events if e.get("status") == "success"),
-            "error": error_event.get("error") if error_event else "unknown error",
+            "n_steps_done": summary["steps_ok"] if summary else 0,
+            "error": str(exc),
         }
 
     events = api.get_run_events(run_id) if run_id else []
