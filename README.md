@@ -129,6 +129,18 @@ pyperun seed-demo               # seeds datasets/DEMO/ + flows/demo.json
 pyperun flow demo               # runs the full on-disk pipeline (postgres skipped)
 ```
 
+Customize the synthetic data with flags (all optional):
+
+```bash
+pyperun seed-demo \
+  --devices valve01 valve02 valve03 \  # device ids        (default: valve01 valve02)
+  --days 7 \                            # days of data      (default: 3)
+  --hours 2 \                           # hours/device/day  (default: 1, 1 Hz)
+  --start-date 2026-01-20 \             # first day         (default: 2026-01-20)
+  --seed 42 \                           # RNG seed          (default: 42)
+  --force                               # overwrite existing DEMO raw files
+```
+
 For a Docker instance, `flows/` is read-only in the container — so seed from the
 host with the `pyperun-seed-demo` helper (no local Python; runs `seed-demo` in a
 throwaway container as you), then run inside:

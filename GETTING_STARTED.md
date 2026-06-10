@@ -125,6 +125,10 @@ pyperun flow demo
 pyperun status                  # → demo (DEMO) ... up-to-date
 ```
 
+Need more (or different) data? `seed-demo` takes optional flags:
+`--devices valve01 valve02 …`, `--days N`, `--hours N` (1 Hz/device/day),
+`--start-date YYYY-MM-DD`, `--seed N`, `--force` (overwrite existing raw).
+
 For a Docker instance (`flows/` is read-only inside the container), seed from the
 host with the `pyperun-seed-demo` helper — no local Python needed — then run inside:
 
