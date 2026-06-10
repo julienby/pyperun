@@ -49,6 +49,14 @@ This scaffolds:
 - `datasets/MY-EXPERIMENT/00_raw/` — where your raw CSV goes
 - `flows/my-experiment.json` — a ready-to-edit flow definition
 
+> **On a Docker instance?** `flows/` is read-only inside the container, so don't
+> run `pyperun init` there. Scaffold from the host with the `pyperun-init`
+> helper — it creates the flow + dataset owned by you and editable:
+> ```bash
+> cp scripts/pyperun-init ~/.local/bin/ && chmod +x ~/.local/bin/pyperun-init  # install once
+> pyperun-init my-instance MY-EXPERIMENT
+> ```
+
 ---
 
 ## 3. Drop in your raw data
