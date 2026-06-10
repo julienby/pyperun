@@ -74,6 +74,13 @@ pyperun init MY-EXPERIMENT
 
 Creates `datasets/MY-EXPERIMENT/00_raw/` and a flow template at `flows/my-experiment.json`.
 
+> **On a Docker instance?** Don't run `pyperun init` inside the container — it
+> mounts `flows/` read-only. Scaffold from the host with the `pyperun-init`
+> helper (see [Authoring datasets on a Docker instance](#authoring-datasets-on-a-docker-instance)):
+> ```bash
+> pyperun-init my-instance MY-EXPERIMENT
+> ```
+
 **2. Drop your raw CSV files in**
 
 ```bash
@@ -510,6 +517,29 @@ PYPERUN_TOKEN=secret PYPERUN_EMAIL=admin@example.org docker compose up -d
 
 `flows/` is mounted read-only (it may hold credentials); `datasets/` and `logs/`
 are read-write. Put a reverse proxy (Caddy/nginx) in front for TLS.
+
+#### Authoring datasets on a Docker instance
+
+Because `flows/` is read-only inside the service container, `pyperun init` can't
+run there. The `pyperun-init` helper (in `scripts/`) scaffolds a dataset on the
+**host** instead — it runs `init` in a throwaway container *as your user*,
+mounting the instance's data dir as the working directory, so the flow and
+dataset land on the host owned by you and editable. The long-running service
+just reads them.
+
+```bash
+# Install once (from a source checkout)
+cp scripts/pyperun-init ~/.local/bin/ && chmod +x ~/.local/bin/pyperun-init
+
+# Scaffold a dataset on an installed instance
+pyperun-init my-instance MY-EXPERIMENT
+pyperun-init my-instance MY-EXPERIMENT --preset csv   # extra args pass through to `pyperun init`
+```
+
+It prints where to drop your raw CSV, the flow file to edit, and the
+`docker exec … pyperun flow …` command to run the pipeline. Override the
+instances root with `PYPERUN_HOME` (default `~/.pyperun`) or the image with
+`PYPERUN_IMAGE` (default `pyperun:latest`).
 
 ---
 
