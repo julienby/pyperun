@@ -15,11 +15,16 @@ services:
       - PYPERUN_EMAIL=${PYPERUN_EMAIL:-}
       # Scheduler cadence in seconds (the tick is folded into this process).
       - PYPERUN_TICK_INTERVAL=${PYPERUN_TICK_INTERVAL:-60}
+      # MCP DNS-rebinding hosts (comma-separated). Empty = protection off
+      # (auth is PYPERUN_TOKEN). Set behind a proxy to harden, e.g.
+      # PYPERUN_ALLOWED_HOSTS=pyperun.databeam.eu
+      - PYPERUN_ALLOWED_HOSTS=${PYPERUN_ALLOWED_HOSTS:-}
     volumes:
       - ./flows:/app/flows:ro          # may contain credentials → read-only
       - ./datasets:/app/datasets
       - ./logs:/app/logs
-      - ./schedules.json:/app/schedules.json:ro
+      # read-write: the schedule façades (UI/REST/CLI/MCP) edit this file
+      - ./schedules.json:/app/schedules.json
       - ./ui_tests:/app/ui_tests:ro    # static SPA served at /
       # Raw data override if 00_raw is external:
       # - /path/to/raw/data:/app/datasets/MY-DATASET/00_raw:ro
