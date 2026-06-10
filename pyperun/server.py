@@ -102,9 +102,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         supplied = _extract_token(request)
         if supplied == TOKEN:
             response = await call_next(request)
-            # Browser arrived with ?token=… → persist it so navigation keeps working.
-            if request.query_params.get("token") and COOKIE_NAME not in request.cookies:
-                response.set_cookie(COOKIE_NAME, TOKEN, httponly=True, samesite="strict")
+            # Browser arrived with a valid ?token=… → (re)persist it so navigation
+            # keeps working. Always overwrite: cookies are scoped by host, not port,
+            # so a stale cookie from another instance on the same host (e.g. another
+            # localhost:PORT) would otherwise shadow this instance's token and 401.
+            if request.query_params.get("token"):
+                response.set_cookie(COOKIE_NAME, TOKEN, httponly=True, samesite="lax")
             return response
 
         ip = _client_ip(request)
