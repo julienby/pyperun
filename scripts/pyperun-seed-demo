@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# pyperun-seed-demo — seed the DEMO reference dataset on a Dockerized pyperun
+# instance, from the host, with no local Python.
+#
+#   pyperun-seed-demo <instance> [extra `pyperun seed-demo` args…]
+#
+# The running service container mounts flows/ read-only (flows may hold
+# credentials), so it can't write the demo flow. This wrapper runs `pyperun
+# seed-demo` in a throwaway container *as your user*, mounting the instance's
+# host data dir as the working directory — so the DEMO dataset + demo flow are
+# created on the host, owned by you and editable. The long-running service just
+# reads them, then `docker exec … pyperun flow demo` runs the pipeline.
+#
+# Examples:
+#   pyperun-seed-demo my-instance
+#   pyperun-seed-demo my-instance --days 7 --devices valve01 valve02 valve03
+#   pyperun-seed-demo my-instance --force
+#
+set -euo pipefail
+
+PYPERUN_HOME="${PYPERUN_HOME:-$HOME/.pyperun}"
+IMAGE="${PYPERUN_IMAGE:-pyperun:latest}"
+
+c_ok=$'\033[32m'; c_err=$'\033[31m'; c_dim=$'\033[2m'; c_off=$'\033[0m'
+die() { printf '%s✗%s %s\n' "$c_err" "$c_off" "$*" >&2; exit 1; }
+
+usage() {
+  cat >&2 <<EOF
+usage: pyperun-seed-demo <instance> [pyperun seed-demo args…]
+
+  <instance>   name of an installed instance (dir under $PYPERUN_HOME)
+
+Extra args are passed through to 'pyperun seed-demo'
+(e.g. --days 7, --hours 2, --devices valve01 valve02, --force).
+EOF
+  exit 1
+}
+
+[ $# -ge 1 ] || usage
+INSTANCE="$1"; shift
+
+DATA="$PYPERUN_HOME/$INSTANCE/data"
+[ -d "$DATA" ] || die "instance « $INSTANCE » introuvable ($DATA). Installe-la d'abord."
+command -v docker >/dev/null 2>&1 || die "Docker introuvable."
+docker image inspect "$IMAGE" >/dev/null 2>&1 || die "image $IMAGE absente — (re)lance l'installeur."
+
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$DATA":/work -w /work \
+  "$IMAGE" pyperun seed-demo --target /work "$@"
+
+printf '\n%s✓%s DEMO prêt dans %s\n' "$c_ok" "$c_off" "$DATA"
+printf '  %srun :%s  docker exec pyperun-%s pyperun flow demo\n' "$c_dim" "$c_off" "$INSTANCE"

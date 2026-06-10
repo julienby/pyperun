@@ -593,6 +593,28 @@ def cmd_serve(args, _parser):
     serve(host=args.host, port=args.port)
 
 
+def cmd_seed_demo(args, _parser):
+    from pyperun.seed import FLOW, run_seed
+    try:
+        s = run_seed(
+            target=args.target,
+            devices=args.devices,
+            days=args.days,
+            hours=args.hours,
+            start_date=args.start_date,
+            seed=args.seed,
+            force=args.force,
+        )
+    except FileExistsError as e:
+        print(f"Error: {e}\nHint: pass --force to overwrite.", file=sys.stderr)
+        raise SystemExit(1)
+    print(f"✓ DEMO seeded → {s['raw_dir']}")
+    print(f"  {s['n_devices']} device(s) × {s['n_days']} day(s) × {s['n_hours']}h"
+          f"  = {s['n_lines']} raw lines")
+    print(f"✓ flow → {s['flow_path']}  ({s['n_steps']} steps, postgres skipped)")
+    print(f"\nRun it:  pyperun flow {FLOW}")
+
+
 def cmd_help(_args, _parser):
     _print_banner()
     print("""\
@@ -926,6 +948,22 @@ def main():
     p_serve.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
     p_serve.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
 
+    # pyperun seed-demo
+    from pyperun.seed import (
+        DEFAULT_DAYS, DEFAULT_DEVICES, DEFAULT_HOURS, DEFAULT_SEED, DEFAULT_START_DATE,
+    )
+    p_seed = sub.add_parser("seed-demo", help="Seed the DEMO reference dataset + flow (synthetic, deterministic)")
+    p_seed.add_argument("--target", default=".", metavar="DIR",
+                        help="Project/instance dir containing flows/ and datasets/ (default: cwd)")
+    p_seed.add_argument("--devices", nargs="+", default=list(DEFAULT_DEVICES),
+                        help=f"Device ids (default: {' '.join(DEFAULT_DEVICES)})")
+    p_seed.add_argument("--days", type=int, default=DEFAULT_DAYS, help=f"Days of data (default: {DEFAULT_DAYS})")
+    p_seed.add_argument("--hours", type=int, default=DEFAULT_HOURS,
+                        help=f"Hours of 1 Hz data per device per day (default: {DEFAULT_HOURS})")
+    p_seed.add_argument("--start-date", default=DEFAULT_START_DATE, help=f"Start date (default: {DEFAULT_START_DATE})")
+    p_seed.add_argument("--seed", type=int, default=DEFAULT_SEED, help=f"RNG seed (default: {DEFAULT_SEED})")
+    p_seed.add_argument("--force", action="store_true", help="Overwrite existing DEMO raw files")
+
     # pyperun help
     p_help = sub.add_parser("help", help="Show detailed help for all commands")
 
@@ -967,6 +1005,8 @@ def main():
         cmd_tick(args, p_tick)
     elif args.command == "serve":
         cmd_serve(args, p_serve)
+    elif args.command == "seed-demo":
+        cmd_seed_demo(args, p_seed)
     elif args.command == "help":
         cmd_help(args, p_help)
 
