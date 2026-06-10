@@ -10,7 +10,6 @@ from pyperun.treatments.to_postgres.run import (
     _copy_to_postgres,
     _ensure_columns,
     _ensure_table,
-    _get_max_ts,
     _matches_structured_filter,
     _pg_type,
     _pivot_wide,
@@ -207,8 +206,8 @@ class TestSQLGeneration:
         sql = mock_cur.execute.call_args[0][0]
         assert 'CREATE TABLE IF NOT EXISTS "TEST_TABLE"' in sql
         assert "ts TIMESTAMPTZ PRIMARY KEY" in sql
-        assert "pil_90__m0__raw__mean DOUBLE PRECISION" in sql
-        assert "pil_90__m0__raw__min BIGINT" in sql
+        assert '"pil_90__m0__raw__mean" DOUBLE PRECISION' in sql
+        assert '"pil_90__m0__raw__min" BIGINT' in sql
 
     def test_ensure_columns_adds_missing(self):
         """Verify ALTER TABLE ADD COLUMN for new columns."""
@@ -236,32 +235,6 @@ class TestSQLGeneration:
         ]
         assert len(alter_calls) == 1
         assert "pil_99__m0__raw__mean" in str(alter_calls[0])
-
-
-# ---------------------------------------------------------------------------
-# Unit tests: _get_max_ts with mock
-# ---------------------------------------------------------------------------
-
-class TestGetMaxTs:
-    def test_returns_ts(self):
-        mock_conn = MagicMock()
-        mock_cur = MagicMock()
-        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cur)
-        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
-        mock_cur.fetchone.return_value = (pd.Timestamp("2026-01-25T12:00:00Z"),)
-
-        result = _get_max_ts(mock_conn, "TEST")
-        assert result == pd.Timestamp("2026-01-25T12:00:00Z")
-
-    def test_returns_none_for_empty(self):
-        mock_conn = MagicMock()
-        mock_cur = MagicMock()
-        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cur)
-        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
-        mock_cur.fetchone.return_value = (None,)
-
-        result = _get_max_ts(mock_conn, "TEST")
-        assert result is None
 
 
 # ---------------------------------------------------------------------------

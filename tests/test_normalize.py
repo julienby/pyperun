@@ -268,7 +268,6 @@ class TestFitWindowDays:
     def test_large_window_on_closed_days_biases_p98(self, tmp_path):
         """Fitting on closed days only yields a small P98 — the risk case."""
         data = self._make_multiday(tmp_path)
-        out = data / "output"
         # Window of 4 days but first 2 are "closed" -> P98 biased by small-range days
         # Window of 2 days on last 2 days -> correct P98
         out_full = data / "out_full"

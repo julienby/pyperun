@@ -1,7 +1,7 @@
 """Tests for pyperun.core.logger — 2-layer log system."""
 import json
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from pathlib import Path
 
 import jsonlines
@@ -13,8 +13,6 @@ from pyperun.core.logger import (
     write_flow_summary,
     cleanup_old_logs,
     new_run_id,
-    LOGS_ROOT,
-    LOG_RETENTION_DAYS,
 )
 
 

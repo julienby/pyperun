@@ -1,5 +1,4 @@
 """Tests for exportduckdb treatment."""
-import json
 from pathlib import Path
 
 import duckdb

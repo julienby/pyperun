@@ -115,15 +115,17 @@ class TestFromTo:
         assert all(t.startswith("2026-01-21") for t in df["Time"])
 
     def test_to_filters_end(self, sample_data):
+        # `to` is exclusive (see treatment.json): 2026-01-21 keeps all of Jan 20.
         out = sample_data / "output"
-        run(str(sample_data / "input"), str(out), _params(to="2026-01-20"))
+        run(str(sample_data / "input"), str(out), _params(to="2026-01-21"))
 
         df = pd.read_csv(sorted(out.glob("*.csv"))[0], sep=";")
         assert len(df) == 6
 
     def test_from_and_to(self, sample_data):
+        # from inclusive, to exclusive: [2026-01-20, 2026-01-21) = all of Jan 20.
         out = sample_data / "output"
-        run(str(sample_data / "input"), str(out), _params(**{"from": "2026-01-20"}, to="2026-01-20"))
+        run(str(sample_data / "input"), str(out), _params(**{"from": "2026-01-20"}, to="2026-01-21"))
 
         df = pd.read_csv(sorted(out.glob("*.csv"))[0], sep=";")
         assert len(df) == 6
@@ -132,7 +134,7 @@ class TestFromTo:
 class TestFilename:
     def test_filename_with_from_to(self, sample_data):
         out = sample_data / "output"
-        run(str(sample_data / "input"), str(out), _params(**{"from": "2026-01-20"}, to="2026-01-21"))
+        run(str(sample_data / "input"), str(out), _params(**{"from": "2026-01-20"}, to="2026-01-22"))
 
         csvs = sorted(out.glob("*.csv"))
         # Dates come from actual data (Paris tz: UTC+1)
@@ -149,12 +151,15 @@ class TestFilename:
 
 
 class TestErrors:
-    def test_missing_column_raises(self, sample_data):
-        with pytest.raises(ValueError, match="Columns not found"):
-            run(str(sample_data / "input"), str(sample_data / "output"),
-                _params(columns={"nonexistent__col": "x"}))
+    def test_missing_columns_skips_device(self, sample_data):
+        # Missing columns are skipped gracefully: no CSV is produced, no raise.
+        out = sample_data / "output"
+        run(str(sample_data / "input"), str(out),
+            _params(columns={"nonexistent__col": "x"}))
+        assert sorted(out.glob("*.csv")) == []
 
-    def test_no_matching_files_raises(self, sample_data):
-        with pytest.raises(FileNotFoundError):
-            run(str(sample_data / "input"), str(sample_data / "output"),
-                _params(aggregation="1h"))
+    def test_no_matching_files_skips(self, sample_data):
+        # No files for the requested aggregation: skip gracefully, no raise.
+        out = sample_data / "output"
+        run(str(sample_data / "input"), str(out), _params(aggregation="1h"))
+        assert sorted(out.glob("*.csv")) == []

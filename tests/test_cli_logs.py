@@ -16,13 +16,12 @@ def isolated_logs(tmp_path, monkeypatch):
 
 
 def _run(args: list[str], capsys) -> tuple[str, str]:
-    with pytest.raises(SystemExit) as exc:
+    with pytest.raises(SystemExit):
         main.__wrapped__(*args) if hasattr(main, "__wrapped__") else _run_main(args)
     return capsys.readouterr()
 
 
 def _run_main(args):
-    import sys
     with patch("sys.argv", ["pyperun"] + args):
         try:
             main()

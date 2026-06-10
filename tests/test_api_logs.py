@@ -1,11 +1,9 @@
 """Tests for the log-related API: get_flow_summary, list_flow_summaries, get_run_events."""
 import json
-from pathlib import Path
 
-import jsonlines
 import pytest
 
-from pyperun.core.logger import write_flow_summary, log_event, LOGS_ROOT
+from pyperun.core.logger import write_flow_summary, log_event
 import pyperun.core.api as api_mod
 import pyperun.core.logger as logger_mod
 
