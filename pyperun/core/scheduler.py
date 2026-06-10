@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 from datetime import datetime
@@ -9,10 +8,9 @@ from zoneinfo import ZoneInfo
 
 from croniter import croniter
 
+from pyperun.core import schedules as schedule_store
 from pyperun.core.api import get_flow_summary
 from pyperun.core.logger import LOGS_ROOT
-
-_SCHEDULES_FILE = Path("schedules.json")
 
 
 def _lock_path(flow: str) -> Path:
@@ -48,13 +46,10 @@ def _is_due(schedule: str, tz_name: str, last_run_utc: datetime | None) -> bool:
 
 
 def tick(schedules_path: str | None = None, dry_run: bool = False) -> None:
-    path = Path(schedules_path) if schedules_path else _SCHEDULES_FILE
-    if not path.exists():
-        print(f"[tick] No schedules file: {path}")
+    schedules = schedule_store.list_schedules(schedules_path)
+    if not schedules:
+        print(f"[tick] No schedules: {schedules_path or schedule_store._SCHEDULES_FILE}")
         return
-
-    with open(path) as f:
-        schedules = json.load(f)
 
     for entry in schedules:
         flow = entry["flow"]

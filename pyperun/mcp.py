@@ -21,9 +21,34 @@ Configure in Claude Code (~/.claude/claude_desktop_config.json or .mcp.json):
 from __future__ import annotations
 
 import json
+import os
+
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 import pyperun.core.api as api
+
+
+def _transport_security() -> TransportSecuritySettings:
+    """DNS-rebinding protection policy for the SSE transport.
+
+    FastMCP otherwise auto-restricts the Host header to localhost, which breaks
+    the server behind a reverse proxy (returns "Invalid Host header"). The real
+    auth is PYPERUN_TOKEN, so:
+
+      - PYPERUN_ALLOWED_HOSTS set (comma-separated, e.g. "pyperun.example.org")
+        → keep protection on and allow those hosts (+ localhost).
+      - unset → disable protection (token-gated, typically behind a proxy).
+    """
+    raw = os.environ.get("PYPERUN_ALLOWED_HOSTS", "").strip()
+    if not raw:
+        return TransportSecuritySettings(enable_dns_rebinding_protection=False)
+    hosts = [h.strip() for h in raw.split(",") if h.strip()]
+    hosts += ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True, allowed_hosts=hosts
+    )
+
 
 mcp = FastMCP(
     name="pyperun",
@@ -34,6 +59,7 @@ mcp = FastMCP(
         "Poll get_flow_summary / list_running to watch progress (step k/N), "
         "get_run_events to inspect results, and stop_flow to request a graceful stop."
     ),
+    transport_security=_transport_security(),
 )
 
 
@@ -278,10 +304,8 @@ def set_flow_config(flow_name: str, config: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Schedule management
+# Schedule management — thin façade over core.schedules
 # ---------------------------------------------------------------------------
-
-_SCHEDULES_FILE = "schedules.json"
 
 
 @mcp.tool()
@@ -291,12 +315,8 @@ def list_schedules() -> list[dict]:
     Each entry: {flow, schedule (cron expression), timezone, enabled}.
     Returns [] if schedules.json does not exist yet.
     """
-    from pathlib import Path
-    path = Path(_SCHEDULES_FILE)
-    if not path.exists():
-        return []
-    with open(path) as f:
-        return json.load(f)
+    from pyperun.core import schedules
+    return schedules.list_schedules()
 
 
 @mcp.tool()
@@ -318,27 +338,13 @@ def upsert_schedule(
     Returns
     -------
     {flow, schedule, timezone, enabled, action} where action is "created" or "updated".
+    On invalid cron/timezone: {error: "..."}.
     """
-    from pathlib import Path
-    path = Path(_SCHEDULES_FILE)
-    schedules = []
-    if path.exists():
-        with open(path) as f:
-            schedules = json.load(f)
-
-    action = "created"
-    for entry in schedules:
-        if entry["flow"] == flow:
-            entry["schedule"] = schedule
-            entry["timezone"] = timezone
-            entry["enabled"] = enabled
-            action = "updated"
-            break
-    else:
-        schedules.append({"flow": flow, "schedule": schedule, "timezone": timezone, "enabled": enabled})
-
-    path.write_text(json.dumps(schedules, indent=4, ensure_ascii=False) + "\n")
-    return {"flow": flow, "schedule": schedule, "timezone": timezone, "enabled": enabled, "action": action}
+    from pyperun.core import schedules
+    try:
+        return schedules.upsert_schedule(flow, schedule, timezone, enabled)
+    except ValueError as e:
+        return {"error": str(e)}
 
 
 @mcp.tool()
@@ -347,18 +353,8 @@ def remove_schedule(flow: str) -> dict:
 
     Returns {removed: true} if the entry existed, {removed: false} if it was not found.
     """
-    from pathlib import Path
-    path = Path(_SCHEDULES_FILE)
-    if not path.exists():
-        return {"removed": False}
-    with open(path) as f:
-        schedules = json.load(f)
-    before = len(schedules)
-    schedules = [e for e in schedules if e["flow"] != flow]
-    if len(schedules) == before:
-        return {"removed": False}
-    path.write_text(json.dumps(schedules, indent=4, ensure_ascii=False) + "\n")
-    return {"removed": True}
+    from pyperun.core import schedules
+    return schedules.remove_schedule(flow)
 
 
 # ---------------------------------------------------------------------------

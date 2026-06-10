@@ -293,6 +293,46 @@ def rest_summary(flow: str):
     return summary
 
 
+@router.get("/schedules")
+def rest_list_schedules():
+    """List cron schedules (schedules.json) driving the internal scheduler."""
+    return api.list_schedules()
+
+
+@router.put("/schedules/{flow}")
+async def rest_upsert_schedule(request: Request, flow: str):
+    """Create or update a flow's cron schedule.
+
+    Body: {schedule (cron), timezone?='UTC', enabled?=true}.
+    """
+    body = {}
+    if await request.body():
+        body = await request.json()
+    schedule = body.get("schedule")
+    if not schedule:
+        return JSONResponse({"error": "'schedule' (cron) is required"}, status_code=400)
+    try:
+        result = api.upsert_schedule(
+            flow,
+            schedule,
+            timezone=body.get("timezone", "UTC"),
+            enabled=body.get("enabled", True),
+        )
+    except ValueError as e:
+        return JSONResponse({"error": str(e)}, status_code=400)
+    code = 201 if result["action"] == "created" else 200
+    return JSONResponse(result, status_code=code)
+
+
+@router.delete("/schedules/{flow}")
+def rest_remove_schedule(flow: str):
+    """Remove a flow's cron schedule."""
+    result = api.remove_schedule(flow)
+    if not result["removed"]:
+        return JSONResponse({"error": f"No schedule for flow '{flow}'"}, status_code=404)
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Scheduler tick — folded into the ASGI process
 # ---------------------------------------------------------------------------

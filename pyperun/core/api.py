@@ -478,6 +478,30 @@ def list_runs(limit: int = 50) -> list[dict]:
     return list_flow_summaries()[:limit]
 
 
+# ---------------------------------------------------------------------------
+# Schedule management — façade over core.schedules (shared by REST/CLI/MCP)
+# ---------------------------------------------------------------------------
+
+def list_schedules() -> list[dict]:
+    """Return all cron schedule entries from schedules.json ([] if none)."""
+    from pyperun.core import schedules
+    return schedules.list_schedules()
+
+
+def upsert_schedule(
+    flow: str, schedule: str, timezone: str = "UTC", enabled: bool = True
+) -> dict:
+    """Add or update a flow's schedule. Raises ValueError on invalid cron/tz."""
+    from pyperun.core import schedules
+    return schedules.upsert_schedule(flow, schedule, timezone, enabled)
+
+
+def remove_schedule(flow: str) -> dict:
+    """Remove a flow's schedule. Returns {removed: bool}."""
+    from pyperun.core import schedules
+    return schedules.remove_schedule(flow)
+
+
 def get_run_events(run_id: str, flow: str | None = None) -> list[dict]:
     """Return all treatment-level log events for a run_id.
 

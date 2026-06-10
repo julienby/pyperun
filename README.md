@@ -474,6 +474,9 @@ PYPERUN_TOKEN=secret PYPERUN_EMAIL=admin@example.org pyperun serve
 | `GET` | `/api/running` | Flows running now, with live step k/N progress |
 | `GET` | `/api/runs?limit=50` · `/api/runs/<run_id>` | Run history / events (for polling) |
 | `GET` | `/api/summaries` · `/api/summaries/<flow>` | Latest-run triage (`latest.json`) |
+| `GET` | `/api/schedules` | List cron schedules |
+| `PUT` | `/api/schedules/<flow>` | Create/update a schedule (`{schedule, timezone?, enabled?}`) |
+| `DELETE` | `/api/schedules/<flow>` | Remove a schedule |
 | `*` | `/mcp` | MCP server (SSE) — same tools, for LLM agents |
 
 ```bash
@@ -510,6 +513,70 @@ Optional `POST /api/run/<flow>` body fields:
 The same operations are exposed as MCP tools at `/mcp` (SSE). Point an MCP client at
 `http://<host>:8000/mcp/sse`. Standalone (no web UI): `python -m pyperun.mcp --sse`
 (needs `pip install pyperun[mcp]`).
+
+### Scheduling — internal cron
+
+`pyperun serve` schedules flows **itself** — no system crontab needed. The
+running ASGI process *is* the scheduler.
+
+**How it works:**
+
+```
+schedules.json            ← [{flow, schedule, timezone, enabled}]
+        │ read every 60s by an in-process tick (server.py::_scheduler_loop)
+        ▼
+   tick()  (core/scheduler.py)   for each enabled entry:
+     1. _is_due?   croniter: has the cron fired since the flow's last run?
+     2. is_locked? per-flow PID lockfile — skip if already running
+     3. launch     subprocess: pyperun flow <flow>   (non-blocking)
+```
+
+`schedules.json` holds standard 5-field cron expressions with an IANA timezone:
+
+```json
+[
+  {"flow": "my-experiment", "schedule": "0 * * * *",  "timezone": "Europe/Paris", "enabled": true},
+  {"flow": "daily-export",  "schedule": "30 2 * * *", "timezone": "UTC",          "enabled": true}
+]
+```
+
+It's read from the working directory, so under Docker mount it explicitly
+(Compose already does). Requires `pip install pyperun[scheduler]` (croniter) —
+the server logs a warning and runs without scheduling if it's missing.
+
+**Semantics worth knowing:**
+
+- **Resilient to downtime.** "Due" compares the previous cron fire to the flow's
+  last run (`latest.json` `ts_start`). If the server was down at the scheduled
+  time, the flow runs once at the next tick after restart.
+- **One catch-up, not N.** A 3-day outage triggers a single run on restart, not
+  three — it's a sync, not a backlog replay.
+- **"Due" tracks the last *start*, not success.** A failed run isn't retried
+  until the next cron window. Add a retry schedule if you need one.
+- **No overlap.** The per-flow lockfile (written by `flow.py`, checked by
+  `is_locked()`) prevents a slow run from being launched twice.
+
+**Managing schedules.** Four interchangeable surfaces, all backed by the same
+`schedules.json` (cron + timezone are validated on write):
+
+```bash
+# CLI
+pyperun schedule list
+pyperun schedule add my-experiment "0 6 * * *" --tz Europe/Paris
+pyperun schedule add nightly "30 2 * * *" --disabled     # paused
+pyperun schedule rm my-experiment
+
+# REST (for the UI and HTTP agents)
+curl -X PUT http://localhost:8000/api/schedules/my-experiment \
+     -H "Content-Type: application/json" \
+     -d '{"schedule": "0 6 * * *", "timezone": "Europe/Paris"}'
+curl http://localhost:8000/api/schedules
+```
+
+LLM agents use the MCP tools (`list_schedules`, `upsert_schedule`,
+`remove_schedule`) — same logic. You can also edit `schedules.json` by hand.
+`pyperun tick` runs one tick manually (e.g. from an external cron, if you'd
+rather not keep `serve` running).
 
 ### Docker
 
@@ -624,6 +691,11 @@ my-project/                       ← your experiment repo
 ---
 
 ## Production — incremental cron
+
+> **Running `pyperun serve`?** Prefer the built-in
+> [internal scheduler](#scheduling--internal-cron) — `schedules.json` + an
+> in-process tick, no system crontab. The host-cron scripts below are for
+> source/CLI deployments that don't run the server.
 
 Run the pipeline automatically every hour with a rolling 2-hour window:
 

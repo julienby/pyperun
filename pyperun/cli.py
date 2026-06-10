@@ -584,6 +584,43 @@ def cmd_tick(args, _parser):
     tick(schedules_path=args.schedules, dry_run=args.dry_run)
 
 
+def cmd_schedule(args, parser):
+    from pyperun.core import schedules
+
+    action = args.schedule_action
+    if action == "list":
+        data = schedules.list_schedules()
+        if args.format == "json":
+            print(json.dumps(data, indent=2, ensure_ascii=False))
+            return
+        if not data:
+            print("No schedules. Add one with: pyperun schedule add <flow> <cron>")
+            return
+        for e in data:
+            state = "on " if e.get("enabled", True) else "off"
+            print(f"  [{state}] {e['flow']:<24s} {e['schedule']:<16s} {e.get('timezone', 'UTC')}")
+
+    elif action == "add":
+        try:
+            result = schedules.upsert_schedule(
+                args.flow, args.cron, timezone=args.tz, enabled=not args.disabled
+            )
+        except ValueError as e:
+            print(f"Error: {e}", file=sys.stderr)
+            raise SystemExit(1)
+        print(f"{result['action']}: {result['flow']} → {result['schedule']} ({result['timezone']})")
+
+    elif action == "rm":
+        result = schedules.remove_schedule(args.flow)
+        if not result["removed"]:
+            print(f"No schedule for flow '{args.flow}'", file=sys.stderr)
+            raise SystemExit(1)
+        print(f"removed: {args.flow}")
+
+    else:
+        parser.print_help()
+
+
 def cmd_serve(args, _parser):
     try:
         from pyperun.server import serve
@@ -943,6 +980,19 @@ def main():
     p_tick.add_argument("--dry-run", action="store_true",
                         help="Print what would run without launching anything")
 
+    # pyperun schedule
+    p_sched = sub.add_parser("schedule", help="Manage cron schedules (schedules.json) for the internal scheduler")
+    sched_sub = p_sched.add_subparsers(dest="schedule_action")
+    ps_list = sched_sub.add_parser("list", help="List all schedules")
+    ps_list.add_argument("--format", choices=["text", "json"], default="text")
+    ps_add = sched_sub.add_parser("add", help="Add or update a flow's schedule")
+    ps_add.add_argument("flow", help="Flow name to schedule")
+    ps_add.add_argument("cron", help="Cron expression, e.g. '0 6 * * *' (daily 06:00)")
+    ps_add.add_argument("--tz", default="UTC", help="IANA timezone (default: UTC)")
+    ps_add.add_argument("--disabled", action="store_true", help="Create paused (enabled=false)")
+    ps_rm = sched_sub.add_parser("rm", help="Remove a flow's schedule")
+    ps_rm.add_argument("flow", help="Flow name to unschedule")
+
     # pyperun serve
     p_serve = sub.add_parser("serve", help="Run the unified ASGI server (UI + REST + MCP + scheduler)")
     p_serve.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
@@ -1003,6 +1053,8 @@ def main():
         cmd_upgrade(args, p_upgrade)
     elif args.command == "tick":
         cmd_tick(args, p_tick)
+    elif args.command == "schedule":
+        cmd_schedule(args, p_sched)
     elif args.command == "serve":
         cmd_serve(args, p_serve)
     elif args.command == "seed-demo":
