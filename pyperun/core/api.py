@@ -394,7 +394,12 @@ def get_status() -> list[dict]:
                 out_dir = Path(out_str)
 
             if out_dir.exists():
-                files = [f for f in out_dir.rglob("*") if f.is_file()]
+                # JSON files in a stage output are sidecars (e.g. normalize's
+                # normalize_params.json), not data — exclude them from the count.
+                files = [
+                    f for f in out_dir.rglob("*")
+                    if f.is_file() and f.suffix != ".json"
+                ]
                 n_files = len(files)
                 if files:
                     last_mod = max(f.stat().st_mtime for f in files)

@@ -39,6 +39,36 @@ def _params(**overrides):
     return {**DEFAULT_PARAMS, **overrides}
 
 
+class TestPassthrough:
+    """Non-target domains must propagate so the stage stays the full dataset."""
+
+    def _add_env(self, sample_data):
+        for source in ["EXP_pil-90", "EXP_pil-98"]:
+            _make_parquet(sample_data / "input", source, "environment",
+                          "2026-01-20", {"outdoor_temp": [18.0, 19.0, 20.0]})
+
+    def test_untargeted_domain_copied_verbatim(self, sample_data):
+        self._add_env(sample_data)
+        out = sample_data / "output"
+        run(str(sample_data / "input"), str(out), _params(fit=True))
+
+        env_dir = out / "domain=environment"
+        files = sorted(env_dir.glob("*.parquet"))
+        assert len(files) == 2  # both devices passed through
+        # Unchanged values (not normalized)
+        df = pd.read_parquet(files[0])
+        assert df["outdoor_temp"].tolist() == [18.0, 19.0, 20.0]
+
+    def test_drop_domains_discards_explicitly(self, sample_data):
+        self._add_env(sample_data)
+        out = sample_data / "output"
+        run(str(sample_data / "input"), str(out),
+            _params(fit=True, drop_domains=["environment"]))
+
+        assert not (out / "domain=environment").exists()
+        assert (out / "domain=bio_signal").exists()
+
+
 class TestFit:
     def test_creates_params_file(self, sample_data):
         out = sample_data / "output"

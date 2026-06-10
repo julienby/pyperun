@@ -25,7 +25,12 @@
         "domain": {
             "type": "str",
             "default": "bio_signal",
-            "description": "Domain to normalize"
+            "description": "Domain to normalize. Other domains are passed through unchanged (see drop_domains)."
+        },
+        "drop_domains": {
+            "type": "list",
+            "default": [],
+            "description": "Domains to discard instead of passing through. By default every non-target domain is copied verbatim so the stage stays the full dataset."
         },
         "columns": {
             "type": "list|dict",

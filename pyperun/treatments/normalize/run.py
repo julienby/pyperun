@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import shutil
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -18,6 +19,33 @@ def _domain_files(directory: Path, domain: str) -> list[Path]:
     if not domain_dir.exists():
         return []
     return sorted(domain_dir.glob("*.parquet"))
+
+
+def _list_domains(directory: Path) -> list[str]:
+    """All domains present on disk (subdirs named `domain=<name>`)."""
+    return sorted(
+        d.name[len("domain="):]
+        for d in directory.glob("domain=*")
+        if d.is_dir()
+    )
+
+
+def _passthrough(inp: Path, out: Path, domains: list[str]) -> int:
+    """Copy untouched domains verbatim so a stage stays the full dataset.
+
+    A step acts only on its target domain; every other domain is propagated
+    as-is, otherwise domain-agnostic downstream steps (aggregate, exports)
+    silently lose data.
+    """
+    copied = 0
+    for dom in domains:
+        src_dir = inp / f"domain={dom}"
+        dst_dir = out / f"domain={dom}"
+        dst_dir.mkdir(parents=True, exist_ok=True)
+        for f in sorted(src_dir.glob("*.parquet")):
+            shutil.copy2(f, dst_dir / f.name)
+            copied += 1
+    return copied
 
 
 def _date_from(path: Path) -> date | None:
@@ -179,6 +207,7 @@ def run(input_dir: str, output_dir: str, params: dict) -> None:
     clip            = bool(params.get("clip", True))
     fit_window_days = int(params.get("fit_window_days", 0))
     min_range_warn  = float(params.get("min_range_warn", 0))
+    drop_domains    = set(params.get("drop_domains", []))
 
     files = _domain_files(inp, domain)
     if not files:
@@ -240,3 +269,12 @@ def run(input_dir: str, output_dir: str, params: dict) -> None:
         df.to_parquet(out_domain / f.name, index=True)
 
     print(f"  [normalize] Applied to {len(files)} files ({domain})")
+
+    # Pass through every domain we didn't target, so 35_normalized stays the
+    # complete dataset. Use drop_domains to discard one explicitly.
+    others = [d for d in _list_domains(inp) if d != domain and d not in drop_domains]
+    if others:
+        n = _passthrough(inp, out, others)
+        print(f"  [normalize] Passed through {n} files from {others}")
+    if drop_domains:
+        print(f"  [normalize] Dropped domains: {sorted(drop_domains)}")
