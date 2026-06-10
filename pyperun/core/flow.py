@@ -1,16 +1,32 @@
 import argparse
 import json
+import os
+import signal
 import sys
 import time
 from pathlib import Path
 
-from pyperun.core.logger import cleanup_old_logs, new_run_id, write_flow_summary
+from pyperun.core.logger import (
+    LOGS_ROOT,
+    cleanup_old_logs,
+    new_run_id,
+    write_flow_progress,
+    write_flow_summary,
+)
 from pyperun.core.pipeline import DATASETS_PREFIX, resolve_paths
 from pyperun.core.runner import run_treatment
 from pyperun.core.timefilter import parse_iso_utc
 
 
 _BUILTIN_FLOWS_ROOT = Path(__file__).resolve().parent.parent.parent / "flows"
+
+# Set by the SIGTERM handler; the run loop checks it between steps (graceful stop).
+_stop_requested = False
+
+
+def _handle_sigterm(signum, frame):
+    global _stop_requested
+    _stop_requested = True
 
 # Params that control execution context, not passed as treatment params
 _META_PARAMS = {"from", "to"}
@@ -55,7 +71,7 @@ def _print_dry_run(name: str, steps: list, time_from, time_to) -> None:
             marker = "  \033[33m← funnel\033[0m" if s.get("_time_from") or s.get("_time_to") else ""
             print(f"    Filter:  {tf} → {tt}{marker}")
         else:
-            print(f"    Filter:  all dates")
+            print("    Filter:  all dates")
         if full_params:
             params_str = json.dumps(full_params, ensure_ascii=False)
             # Truncate very long params for readability
@@ -222,46 +238,76 @@ def run_flow(
     if run_id is None:
         run_id = new_run_id()
 
+    # Allow a graceful stop via SIGTERM (A5). Only works in the main thread;
+    # when run_flow is called from a worker thread (Flask/MCP in-process), skip.
+    global _stop_requested
+    _stop_requested = False
     try:
-        cleanup_old_logs()
-    except Exception:
+        signal.signal(signal.SIGTERM, _handle_sigterm)
+    except ValueError:
         pass
 
-    ts_start = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
-    t0 = time.perf_counter()
-    steps_ok = 0
+    pid = os.getpid()
+    lock_path = LOGS_ROOT / "flows" / name / ".lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text(str(pid))
 
-    print(f"[flow] Starting '{name}' ({len(steps)} steps)  run_id={run_id}")
-    for i, s in enumerate(steps, 1):
-        treatment = s["treatment"]
-        input_dir = s["input"]
-        output_dir = s.get("output", "")
-        params = s.get("params", {})
-        if params_override:
-            params = {**params, **params_override}
-
-        # Per-step time range: step-level from/to overrides flow-level (funnel).
-        step_time_from = s.get("_time_from", time_from)
-        step_time_to = s.get("_time_to", time_to)
-
-        print(f"[flow] Step {i}/{len(steps)}: {treatment}")
+    try:
         try:
-            run_treatment(treatment, input_dir, output_dir, params,
-                          time_from=step_time_from, time_to=step_time_to,
-                          output_mode=output_mode, flow=name, run_id=run_id)
-            steps_ok += 1
-        except Exception as exc:
-            duration_ms = (time.perf_counter() - t0) * 1000
-            write_flow_summary(name, run_id, "error", ts_start, duration_ms,
-                               i, steps_ok, 1, error=str(exc))
-            print(f"[flow] FAILED at step {i} ({treatment}): {exc}", file=sys.stderr)
-            raise RuntimeError(str(exc)) from exc
+            cleanup_old_logs()
+        except Exception:
+            pass
 
-    duration_ms = (time.perf_counter() - t0) * 1000
-    write_flow_summary(name, run_id, "success", ts_start, duration_ms,
-                       len(steps), steps_ok, 0)
-    print(f"[flow] Completed '{name}' successfully  run_id={run_id}")
-    return run_id
+        ts_start = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        t0 = time.perf_counter()
+        steps_ok = 0
+
+        print(f"[flow] Starting '{name}' ({len(steps)} steps)  run_id={run_id}")
+        for i, s in enumerate(steps, 1):
+            treatment = s["treatment"]
+
+            # Graceful stop requested (SIGTERM): stop between steps (A5).
+            if _stop_requested:
+                duration_ms = (time.perf_counter() - t0) * 1000
+                write_flow_summary(name, run_id, "stopped", ts_start, duration_ms,
+                                   len(steps), steps_ok, 0,
+                                   step_index=steps_ok, current_step=None)
+                print(f"[flow] Stopped '{name}' after {steps_ok} step(s)  run_id={run_id}")
+                return run_id
+
+            input_dir = s["input"]
+            output_dir = s.get("output", "")
+            params = s.get("params", {})
+            if params_override:
+                params = {**params, **params_override}
+
+            # Per-step time range: step-level from/to overrides flow-level (funnel).
+            step_time_from = s.get("_time_from", time_from)
+            step_time_to = s.get("_time_to", time_to)
+
+            # O8: publish live progress (step k/N) before running the step.
+            write_flow_progress(name, run_id, ts_start, len(steps), i, treatment, pid)
+            print(f"[flow] Step {i}/{len(steps)}: {treatment}")
+            try:
+                run_treatment(treatment, input_dir, output_dir, params,
+                              time_from=step_time_from, time_to=step_time_to,
+                              output_mode=output_mode, flow=name, run_id=run_id)
+                steps_ok += 1
+            except Exception as exc:
+                duration_ms = (time.perf_counter() - t0) * 1000
+                write_flow_summary(name, run_id, "error", ts_start, duration_ms,
+                                   len(steps), steps_ok, 1, error=str(exc),
+                                   step_index=i, current_step=treatment)
+                print(f"[flow] FAILED at step {i} ({treatment}): {exc}", file=sys.stderr)
+                raise RuntimeError(str(exc)) from exc
+
+        duration_ms = (time.perf_counter() - t0) * 1000
+        write_flow_summary(name, run_id, "success", ts_start, duration_ms,
+                           len(steps), steps_ok, 0)
+        print(f"[flow] Completed '{name}' successfully  run_id={run_id}")
+        return run_id
+    finally:
+        lock_path.unlink(missing_ok=True)
 
 
 def main():
@@ -279,6 +325,8 @@ def main():
                         help="Stop at this treatment step (inclusive)")
     parser.add_argument("--step", default=None,
                         help="Run a single step from the flow")
+    parser.add_argument("--run-id", dest="run_id", default=None,
+                        help="Use this run_id instead of generating one")
     args = parser.parse_args()
 
     if args.step and (args.from_step or args.to_step):
@@ -293,7 +341,8 @@ def main():
 
     run_flow(args.flow, time_from=time_from, time_to=time_to,
              output_mode=args.output_mode,
-             from_step=args.from_step, to_step=args.to_step, step=args.step)
+             from_step=args.from_step, to_step=args.to_step, step=args.step,
+             run_id=args.run_id)
 
 
 if __name__ == "__main__":

@@ -20,8 +20,10 @@ class ParamSchema(BaseModel):
     @classmethod
     def check_type(cls, v: str) -> str:
         allowed = {"str", "int", "float", "bool", "list", "dict"}
-        if v not in allowed:
-            raise ValueError(f"type must be one of {allowed}, got '{v}'")
+        # Pipe-separated unions are allowed, e.g. "list|dict".
+        for part in v.split("|"):
+            if part not in allowed:
+                raise ValueError(f"type must be one of {allowed} (optionally |-unioned), got '{v}'")
         return v
 
 
@@ -55,7 +57,7 @@ def merge_params(schema: TreatmentSchema, provided: dict[str, Any]) -> dict[str,
         if val is None:
             merged[name] = None
             continue
-        expected = TYPE_MAP[param.type]
+        expected = tuple(TYPE_MAP[t] for t in param.type.split("|"))
         if not isinstance(val, expected):
             raise TypeError(f"Param '{name}' expected {param.type}, got {type(val).__name__}")
         merged[name] = val

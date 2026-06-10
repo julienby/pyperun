@@ -30,8 +30,9 @@ mcp = FastMCP(
     instructions=(
         "You have access to a pyperun IoT time-series pipeline. "
         "Use list_flows and get_status first to understand what is available. "
-        "run_flow is blocking — it returns only after the pipeline completes. "
-        "Use get_run_events with the returned run_id to inspect results or diagnose errors."
+        "run_flow is non-blocking — it launches the flow and returns a run_id immediately. "
+        "Poll get_flow_summary / list_running to watch progress (step k/N), "
+        "get_run_events to inspect results, and stop_flow to request a graceful stop."
     ),
 )
 
@@ -126,10 +127,12 @@ def run_flow(
     output_mode: str = "replace",
     params_override: str | None = None,
 ) -> dict:
-    """Launch a flow and wait for it to complete. Returns a run summary.
+    """Launch a flow in the background and return its run_id immediately.
 
-    This is a BLOCKING call — it returns only once the flow finishes (or fails).
-    For long pipelines this can take several minutes.
+    This is NON-BLOCKING — the flow runs as a detached subprocess. Long pipelines
+    keep running after this returns. Watch progress with get_flow_summary(name)
+    (status 'running' + step_index/steps_total) or list_running(), inspect results
+    with get_run_events(run_id), and stop it early with stop_flow(name).
 
     Parameters
     ----------
@@ -145,7 +148,7 @@ def run_flow(
 
     Returns
     -------
-    {run_id, status, n_steps_done, error}
+    {run_id, status, error} — status is "started" on success.
     """
     overrides = None
     if params_override:
@@ -155,7 +158,7 @@ def run_flow(
             return {"error": f"params_override is not valid JSON: {exc}"}
 
     try:
-        run_id = api.run_flow(
+        run_id = api.launch_flow(
             name,
             time_from=time_from,
             time_to=time_to,
@@ -167,22 +170,29 @@ def run_flow(
         )
     except (FileNotFoundError, ValueError) as exc:
         return {"error": str(exc), "run_id": None, "status": "error"}
-    except RuntimeError as exc:
-        summary = api.get_flow_summary(name)
-        return {
-            "run_id": summary["run_id"] if summary else None,
-            "status": "error",
-            "n_steps_done": summary["steps_ok"] if summary else 0,
-            "error": str(exc),
-        }
 
-    events = api.get_run_events(run_id) if run_id else []
-    return {
-        "run_id": run_id,
-        "status": "success",
-        "n_steps_done": sum(1 for e in events if e.get("status") == "success"),
-        "error": None,
-    }
+    return {"run_id": run_id, "status": "started", "error": None}
+
+
+@mcp.tool()
+def list_running() -> list[dict]:
+    """Return the flows currently running, with live progress (O7).
+
+    Each entry: {flow, pid, run_id, ts_start, step_index, steps_total, current_step}.
+    step_index/steps_total give "step k/N" progress. Returns [] if nothing is running.
+    Source of truth is the per-flow lockfile; stale locks are cleaned up automatically.
+    """
+    return api.list_running()
+
+
+@mcp.tool()
+def stop_flow(flow: str) -> dict:
+    """Request a graceful stop of a running flow (A5).
+
+    Sends SIGTERM to the flow process; it stops between steps (the step in progress
+    may finish) and writes a 'stopped' summary. Returns {flow, stopped, pid?, reason?}.
+    """
+    return api.stop_flow(flow)
 
 
 @mcp.tool()
@@ -204,6 +214,151 @@ def init_dataset(
     {dataset, flow, flow_path, action, created_dirs}
     """
     return api.init_dataset(dataset, preset=preset, flow_name=flow_name)
+
+
+@mcp.tool()
+def list_treatments() -> list[dict]:
+    """List all available treatments with their descriptions.
+
+    Returns [{name, description}]. Use describe_treatment(name) for full param details.
+    """
+    return api.list_treatments()
+
+
+# ---------------------------------------------------------------------------
+# Flow config read/write
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def get_flow_config(flow_name: str) -> dict:
+    """Read the raw JSON config of a flow file.
+
+    Returns the full flow dict: {name, description, dataset, params, steps}.
+    Use this before set_flow_config to read-modify-write.
+    """
+    from pyperun.core.flow import _find_flow
+    try:
+        path = _find_flow(flow_name)
+    except FileNotFoundError as exc:
+        return {"error": str(exc)}
+    with open(path) as f:
+        return json.load(f)
+
+
+@mcp.tool()
+def set_flow_config(flow_name: str, config: str) -> dict:
+    """Write (overwrite) a flow JSON file.
+
+    Parameters
+    ----------
+    flow_name : Flow name, e.g. "my-experiment" — writes to flows/<flow_name>.json
+    config    : Full flow config as a JSON string.
+                Must contain at least: {"steps": [...]}
+                Include "dataset" to use relative stage paths.
+
+    Returns
+    -------
+    {flow_path, n_steps} on success, {error} on failure.
+
+    Workflow: call get_flow_config first, modify the dict, pass it back as JSON string.
+    """
+    from pathlib import Path
+    try:
+        cfg = json.loads(config)
+    except json.JSONDecodeError as exc:
+        return {"error": f"config is not valid JSON: {exc}"}
+    if "steps" not in cfg or not isinstance(cfg["steps"], list):
+        return {"error": "config must contain a 'steps' array"}
+
+    flows_dir = Path("flows")
+    flows_dir.mkdir(exist_ok=True)
+    flow_path = flows_dir / f"{flow_name}.json"
+    flow_path.write_text(json.dumps(cfg, indent=4, ensure_ascii=False) + "\n")
+    return {"flow_path": str(flow_path), "n_steps": len(cfg["steps"])}
+
+
+# ---------------------------------------------------------------------------
+# Schedule management
+# ---------------------------------------------------------------------------
+
+_SCHEDULES_FILE = "schedules.json"
+
+
+@mcp.tool()
+def list_schedules() -> list[dict]:
+    """Return the current contents of schedules.json.
+
+    Each entry: {flow, schedule (cron expression), timezone, enabled}.
+    Returns [] if schedules.json does not exist yet.
+    """
+    from pathlib import Path
+    path = Path(_SCHEDULES_FILE)
+    if not path.exists():
+        return []
+    with open(path) as f:
+        return json.load(f)
+
+
+@mcp.tool()
+def upsert_schedule(
+    flow: str,
+    schedule: str,
+    timezone: str = "UTC",
+    enabled: bool = True,
+) -> dict:
+    """Add or update a schedule entry in schedules.json.
+
+    Parameters
+    ----------
+    flow      : Flow name to schedule, e.g. "my-experiment"
+    schedule  : Standard cron expression, e.g. "0 6 * * *" (daily at 06:00)
+    timezone  : IANA timezone name, e.g. "Europe/Paris" (default: UTC)
+    enabled   : Set to false to pause without deleting
+
+    Returns
+    -------
+    {flow, schedule, timezone, enabled, action} where action is "created" or "updated".
+    """
+    from pathlib import Path
+    path = Path(_SCHEDULES_FILE)
+    schedules = []
+    if path.exists():
+        with open(path) as f:
+            schedules = json.load(f)
+
+    action = "created"
+    for entry in schedules:
+        if entry["flow"] == flow:
+            entry["schedule"] = schedule
+            entry["timezone"] = timezone
+            entry["enabled"] = enabled
+            action = "updated"
+            break
+    else:
+        schedules.append({"flow": flow, "schedule": schedule, "timezone": timezone, "enabled": enabled})
+
+    path.write_text(json.dumps(schedules, indent=4, ensure_ascii=False) + "\n")
+    return {"flow": flow, "schedule": schedule, "timezone": timezone, "enabled": enabled, "action": action}
+
+
+@mcp.tool()
+def remove_schedule(flow: str) -> dict:
+    """Remove a flow from schedules.json.
+
+    Returns {removed: true} if the entry existed, {removed: false} if it was not found.
+    """
+    from pathlib import Path
+    path = Path(_SCHEDULES_FILE)
+    if not path.exists():
+        return {"removed": False}
+    with open(path) as f:
+        schedules = json.load(f)
+    before = len(schedules)
+    schedules = [e for e in schedules if e["flow"] != flow]
+    if len(schedules) == before:
+        return {"removed": False}
+    path.write_text(json.dumps(schedules, indent=4, ensure_ascii=False) + "\n")
+    return {"removed": True}
 
 
 # ---------------------------------------------------------------------------

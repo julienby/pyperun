@@ -65,7 +65,8 @@ def cmd_flow(args, parser):
         run_flow(args.flow, time_from=time_from, time_to=time_to,
                  output_mode=args.output_mode,
                  from_step=args.from_step, to_step=args.to_step, step=args.step,
-                 dry_run=args.dry_run, params_override=params_override)
+                 dry_run=args.dry_run, params_override=params_override,
+                 run_id=args.run_id)
     except RuntimeError:
         raise SystemExit(1)
 
@@ -224,6 +225,10 @@ _BUILTIN_PRESETS = {
         "description": "Core pipeline → exportparquet",
         "steps": ["parse", "clean", "resample", "transform", "normalize", "aggregate", "exportparquet"],
     },
+    "duckdb": {
+        "description": "Core pipeline → exportduckdb (analytical DuckDB database)",
+        "steps": ["parse", "clean", "resample", "transform", "normalize", "aggregate", "exportduckdb"],
+    },
     "full": {
         "description": "Full pipeline (all steps)",
         "steps": None,  # None = all PIPELINE_STEPS
@@ -290,9 +295,9 @@ def cmd_init(args, _parser):
     action = "Regenerated flow" if result["action"] == "regenerated" else "Initialized project"
     print(f"{action} at {project_dir}/  (preset: {args.preset})")
     print()
-    print(f"  flows/")
+    print("  flows/")
     print(f"    {result['flow']}.json")
-    print(f"  treatments/              (custom treatments, optional)")
+    print("  treatments/              (custom treatments, optional)")
     print(f"  datasets/{result['dataset']}/")
     for d in result["created_dirs"]:
         stage = d.split("/")[-1]
@@ -369,7 +374,7 @@ def _pyperun_version() -> str:
         return "unknown"
 
 
-def _git_info_path() -> "Path":
+def _git_info_path():
     from pathlib import Path
     return Path(__file__).resolve().parent / "_git_info.json"
 
@@ -570,6 +575,24 @@ def cmd_import(args, _parser):
         print(f"  pyperun flow {f.replace('.json', '')}")
 
 
+def cmd_tick(args, _parser):
+    try:
+        from pyperun.core.scheduler import tick
+    except ImportError as e:
+        print(f"Error: {e}\nHint: pip install 'pyperun[scheduler]'", file=sys.stderr)
+        raise SystemExit(1)
+    tick(schedules_path=args.schedules, dry_run=args.dry_run)
+
+
+def cmd_serve(args, _parser):
+    try:
+        from pyperun.server import serve
+    except ImportError as e:
+        print(f"Error: {e}\nHint: pip install 'pyperun[server]'", file=sys.stderr)
+        raise SystemExit(1)
+    serve(host=args.host, port=args.port)
+
+
 def cmd_help(_args, _parser):
     _print_banner()
     print("""\
@@ -615,6 +638,10 @@ Commands:
   pyperun logs <flow>             Show last run summary for one flow
   pyperun logs <flow> --run <id>  Show all events for a specific run
     --format json                 Machine-readable output
+
+  pyperun tick                    Check schedules.json and launch due flows
+    --schedules <path>            Path to schedules.json (default: ./schedules.json)
+    --dry-run                     Print what would run without launching
 
   pyperun status                  Show status of all datasets
   pyperun upgrade                 Update pyperun via git + pip
@@ -809,6 +836,8 @@ def main():
                         help="Print the execution plan without running anything")
     p_flow.add_argument("--params", default=None, metavar="JSON",
                         help="JSON object of params to override for every step (e.g. '{\"mode\": \"reset\"}')")
+    p_flow.add_argument("--run-id", dest="run_id", default=None,
+                        help="Use this run_id instead of generating one (set by the server when launching)")
     _add_common_args(p_flow)
 
     # pyperun new
@@ -885,6 +914,18 @@ def main():
     p_upgrade.add_argument("--path", default=None,
                            help="Path to the pyperun git repository (auto-detected if omitted)")
 
+    # pyperun tick
+    p_tick = sub.add_parser("tick", help="Check schedules.json and launch due flows (heartbeat)")
+    p_tick.add_argument("--schedules", default=None, metavar="PATH",
+                        help="Path to schedules.json (default: ./schedules.json)")
+    p_tick.add_argument("--dry-run", action="store_true",
+                        help="Print what would run without launching anything")
+
+    # pyperun serve
+    p_serve = sub.add_parser("serve", help="Run the unified ASGI server (UI + REST + MCP + scheduler)")
+    p_serve.add_argument("--host", default="0.0.0.0", help="Bind host (default: 0.0.0.0)")
+    p_serve.add_argument("--port", type=int, default=8000, help="Bind port (default: 8000)")
+
     # pyperun help
     p_help = sub.add_parser("help", help="Show detailed help for all commands")
 
@@ -922,6 +963,10 @@ def main():
         cmd_logs(args, p_logs)
     elif args.command == "upgrade":
         cmd_upgrade(args, p_upgrade)
+    elif args.command == "tick":
+        cmd_tick(args, p_tick)
+    elif args.command == "serve":
+        cmd_serve(args, p_serve)
     elif args.command == "help":
         cmd_help(args, p_help)
 

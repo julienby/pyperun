@@ -75,8 +75,14 @@ def write_flow_summary(
     steps_ok: int,
     steps_failed: int,
     error: str | None = None,
+    step_index: int | None = None,
+    current_step: str | None = None,
 ) -> None:
-    """Write/overwrite logs/flows/<flow>/latest.json — the agent-readable triage layer."""
+    """Write/overwrite logs/flows/<flow>/latest.json — the agent-readable triage layer.
+
+    Terminal states (success/error/stopped). For live progress during a run,
+    use write_flow_progress().
+    """
     summary = {
         "flow": flow,
         "run_id": run_id,
@@ -87,9 +93,45 @@ def write_flow_summary(
         "steps_total": steps_total,
         "steps_ok": steps_ok,
         "steps_failed": steps_failed,
+        "step_index": steps_total if step_index is None else step_index,
+        "current_step": current_step,
+        "pid": None,
     }
     if error is not None:
         summary["error"] = error
+    path = LOGS_ROOT / "flows" / flow / "latest.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(summary, indent=2))
+
+
+def write_flow_progress(
+    flow: str,
+    run_id: str,
+    ts_start: str,
+    steps_total: int,
+    step_index: int,
+    current_step: str,
+    pid: int,
+) -> None:
+    """Write logs/flows/<flow>/latest.json with status='running' — live progress.
+
+    Called before each step so O7 (what's running) / O8 (step k/N) can read it.
+    step_index is 1-based: the step about to run. steps_ok = step_index - 1.
+    """
+    summary = {
+        "flow": flow,
+        "run_id": run_id,
+        "status": "running",
+        "ts_start": ts_start,
+        "ts_end": None,
+        "duration_ms": None,
+        "steps_total": steps_total,
+        "steps_ok": max(step_index - 1, 0),
+        "steps_failed": 0,
+        "step_index": step_index,
+        "current_step": current_step,
+        "pid": pid,
+    }
     path = LOGS_ROOT / "flows" / flow / "latest.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(summary, indent=2))

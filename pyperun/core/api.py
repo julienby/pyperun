@@ -215,6 +215,142 @@ def run_flow(
     )
 
 
+def launch_flow(
+    name: str,
+    *,
+    time_from: str | None = None,
+    time_to: str | None = None,
+    from_step: str | None = None,
+    to_step: str | None = None,
+    step: str | None = None,
+    output_mode: str = "replace",
+    params_override: dict | None = None,
+) -> str:
+    """Launch a flow as a detached subprocess and return its run_id immediately.
+
+    Non-blocking (A1): the flow runs in its own `pyperun flow` child process,
+    so different flows run in parallel and isolated. Track progress via
+    get_flow_summary / get_run_events / list_running.
+
+    Raises FileNotFoundError if the flow does not exist.
+    """
+    import subprocess
+    from pyperun.core.flow import _find_flow
+    from pyperun.core.logger import LOGS_ROOT, new_run_id
+
+    _find_flow(name)  # validate up front (raises FileNotFoundError)
+
+    if step and (from_step or to_step):
+        raise ValueError("step is mutually exclusive with from_step/to_step")
+
+    run_id = new_run_id()
+    cmd = ["pyperun", "flow", name, "--run-id", run_id]
+    if time_from:
+        cmd += ["--from", time_from]
+    if time_to:
+        cmd += ["--to", time_to]
+    if from_step:
+        cmd += ["--from-step", from_step]
+    if to_step:
+        cmd += ["--to-step", to_step]
+    if step:
+        cmd += ["--step", step]
+    if output_mode and output_mode != "replace":
+        cmd += ["--output-mode", output_mode]
+    if params_override:
+        cmd += ["--params", json.dumps(params_override)]
+
+    log_dir = LOGS_ROOT / "flows" / name
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_file = open(log_dir / "stdout.log", "ab")
+    subprocess.Popen(cmd, stdout=log_file, stderr=log_file)
+    log_file.close()
+    return run_id
+
+
+# ---------------------------------------------------------------------------
+# Running flows — O7 (what's running) + A5 (stop), backed by the PID lockfile
+# ---------------------------------------------------------------------------
+
+def _pid_alive(pid: int) -> bool:
+    """Return True if a process with this PID exists and is signalable."""
+    import os
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # alive, owned by another user
+
+
+def _read_lock_pid(lock_path: Path) -> int | None:
+    try:
+        return int(lock_path.read_text().strip())
+    except (ValueError, OSError):
+        return None
+
+
+def list_running() -> list[dict]:
+    """Return flows currently running, with live progress (O7).
+
+    Source of truth is the per-flow PID lockfile (logs/flows/<flow>/.lock);
+    stale lockfiles (dead PID) are cleaned up. Progress fields come from
+    latest.json (written before each step).
+
+    Each entry: {flow, pid, run_id, ts_start, step_index, steps_total, current_step}.
+    """
+    from pyperun.core.logger import LOGS_ROOT
+
+    flows_dir = LOGS_ROOT / "flows"
+    if not flows_dir.exists():
+        return []
+
+    running = []
+    for lock in sorted(flows_dir.glob("*/.lock")):
+        flow = lock.parent.name
+        pid = _read_lock_pid(lock)
+        if pid is None or not _pid_alive(pid):
+            lock.unlink(missing_ok=True)
+            continue
+        entry = {"flow": flow, "pid": pid, "run_id": None, "ts_start": None,
+                 "step_index": None, "steps_total": None, "current_step": None}
+        summary = get_flow_summary(flow)
+        if summary and summary.get("status") == "running":
+            for k in ("run_id", "ts_start", "step_index", "steps_total", "current_step"):
+                entry[k] = summary.get(k)
+        running.append(entry)
+    return running
+
+
+def stop_flow(flow: str) -> dict:
+    """Request a graceful stop of a running flow via SIGTERM (A5).
+
+    The flow stops between steps (the in-progress step may finish); its `finally`
+    removes the lockfile and writes a 'stopped' summary.
+
+    Returns {flow, stopped: bool, pid?, reason?}.
+    """
+    import os
+    import signal
+    from pyperun.core.logger import LOGS_ROOT
+
+    lock = LOGS_ROOT / "flows" / flow / ".lock"
+    if not lock.exists():
+        return {"flow": flow, "stopped": False, "reason": "not running"}
+    pid = _read_lock_pid(lock)
+    if pid is None:
+        return {"flow": flow, "stopped": False, "reason": "invalid lockfile"}
+    if not _pid_alive(pid):
+        lock.unlink(missing_ok=True)
+        return {"flow": flow, "stopped": False, "reason": "process not alive"}
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except OSError as exc:
+        return {"flow": flow, "stopped": False, "pid": pid, "reason": str(exc)}
+    return {"flow": flow, "stopped": True, "pid": pid}
+
+
 # ---------------------------------------------------------------------------
 # Status
 # ---------------------------------------------------------------------------
