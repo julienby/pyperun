@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+#
+# pyperun-init — create a dataset on a Dockerized pyperun instance, from the host.
+#
+#   pyperun-init <instance> <DATASET> [extra `pyperun init` args…]
+#
+# The running service container mounts flows/ read-only (flows may hold
+# credentials), so `pyperun init` can't run inside it. This wrapper runs init in
+# a throwaway container *as your user*, mounting the instance's host data dir as
+# the working directory — so the flow + dataset dirs are created on the host,
+# owned by you and editable. The long-running service just reads them.
+#
+# Examples:
+#   pyperun-init my-instance MY-EXPERIMENT
+#   pyperun-init my-instance MY-EXPERIMENT --preset csv
+#   pyperun-init my-instance MY-EXPERIMENT --force
+#
+set -euo pipefail
+
+PYPERUN_HOME="${PYPERUN_HOME:-$HOME/.pyperun}"
+IMAGE="${PYPERUN_IMAGE:-pyperun:latest}"
+
+c_ok=$'\033[32m'; c_err=$'\033[31m'; c_dim=$'\033[2m'; c_off=$'\033[0m'
+die() { printf '%s✗%s %s\n' "$c_err" "$c_off" "$*" >&2; exit 1; }
+
+usage() {
+  cat >&2 <<EOF
+usage: pyperun-init <instance> <DATASET> [pyperun init args…]
+
+  <instance>   name of an installed instance (dir under $PYPERUN_HOME)
+  <DATASET>    dataset name to scaffold (e.g. MY-EXPERIMENT)
+
+Extra args are passed through to 'pyperun init' (e.g. --preset csv, --force).
+EOF
+  exit 1
+}
+
+[ $# -ge 2 ] || usage
+INSTANCE="$1"; DATASET="$2"; shift 2
+
+DATA="$PYPERUN_HOME/$INSTANCE/data"
+[ -d "$DATA" ] || die "instance « $INSTANCE » introuvable ($DATA). Installe-la d'abord."
+command -v docker >/dev/null 2>&1 || die "Docker introuvable."
+docker image inspect "$IMAGE" >/dev/null 2>&1 || die "image $IMAGE absente — (re)lance l'installeur."
+
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$DATA":/work -w /work \
+  "$IMAGE" pyperun init "$DATASET" "$@"
+
+flow="$(printf '%s' "$DATASET" | tr '[:upper:] ' '[:lower:]-')"
+printf '\n%s✓%s dataset « %s » prêt dans %s\n' "$c_ok" "$c_off" "$DATASET" "$DATA"
+printf '  %sraw :%s  %s/datasets/%s/00_raw/   ← dépose tes CSV ici\n' "$c_dim" "$c_off" "$DATA" "$DATASET"
+printf '  %sflow:%s  %s/flows/%s.json          ← édite la config\n' "$c_dim" "$c_off" "$DATA" "$flow"
+printf '  %srun :%s  docker exec pyperun-%s pyperun flow %s\n' "$c_dim" "$c_off" "$INSTANCE" "$flow"
