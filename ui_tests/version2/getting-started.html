@@ -119,6 +119,15 @@ pyperun --help</div>
 ├── …
 └── 40_aggregated/
 flows/my-experiment.json   <span class="c"># ← définition du pipeline</span></div>
+      <p class="text-xs muted">
+        🐳 Sur une instance Docker, <span class="mono">flows/</span> est monté en lecture seule dans le conteneur :
+        ne lance pas <span class="mono">pyperun init</span> dedans. Échafaude depuis l'hôte avec le helper
+        <span class="mono">pyperun-init</span> (crée le flow + dataset à toi, éditables) :
+      </p>
+      <div class="code"><span class="c"># installer une fois</span>
+cp scripts/pyperun-init ~/.local/bin/ <span class="p">&&</span> chmod +x ~/.local/bin/pyperun-init
+<span class="c"># échafauder sur une instance installée</span>
+pyperun-init <span class="p">my-instance</span> MY-EXPERIMENT</div>
     </section>
 
     <!-- 3. Data -->
