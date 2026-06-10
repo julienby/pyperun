@@ -1,22 +1,24 @@
 # Pyperun
 
-> Minimal IoT time-series pipeline — from raw sensor CSV to aggregated parquet, PostgreSQL, and CSV exports.
+> Minimal IoT time-series pipeline — from raw sensor CSV to aggregated parquet, PostgreSQL, and CSV/Parquet/DuckDB exports.
 
 ```
   raw CSV
      │
      ▼
-  ┌─────────┐   ┌───────┐   ┌──────────┐   ┌───────────┐   ┌───────────┐
-  │  parse  │──▶│ clean │──▶│ resample │──▶│ transform │──▶│ aggregate │──┐
-  └─────────┘   └───────┘   └──────────┘   └───────────┘   └───────────┘  │
-                                                                            │
-                                                              ┌─────────────┼──────────────┐
-                                                              ▼             ▼              ▼
-                                                         to_postgres   exportcsv   exportparquet
-                                                         (Grafana)      (CSV)       (parquet)
+  ┌───────┐  ┌───────┐  ┌──────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐
+  │ parse │─▶│ clean │─▶│ resample │─▶│ transform │─▶│ normalize │─▶│ aggregate │─┐
+  └───────┘  └───────┘  └──────────┘  └───────────┘  └───────────┘  └───────────┘ │
+                                                                                   │
+                                              ┌──────────────┬─────────┬──────────┼──────────┐
+                                              ▼              ▼         ▼          ▼          ▼
+                                          to_postgres    exportcsv  exportparquet  exportduckdb
+                                          (Grafana)        (CSV)     (parquet)      (DuckDB)
 ```
 
 Pyperun is a **framework**: install it once, then describe your experiment as a **flow** — a plain JSON file that sequences treatments, maps directories, and sets parameters. No code to write for standard pipelines.
+
+**New here?** Follow the 5-minute [Getting Started](GETTING_STARTED.md) guide.
 
 ---
 
@@ -156,6 +158,7 @@ pyperun describe <treatment>        # show params and formats for a treatment
 pyperun export MY-EXPERIMENT        # export dataset to a portable archive
 pyperun import my-archive.tar.gz    # import on another server
 pyperun delete MY-EXPERIMENT        # delete dataset and its flows
+pyperun serve                       # run the unified server (UI + REST + MCP + scheduler)
 pyperun upgrade                     # pull latest pyperun and reinstall
 ```
 
@@ -230,11 +233,12 @@ When `dataset` is set, `input`/`output` paths are relative to `datasets/<DATASET
 | `clean` | `10_parsed` → `20_clean` | Drop duplicates, clamp to min/max, remove spikes (rolling median) |
 | `resample` | `20_clean` → `25_resampled` | Regular 1s grid, forward-fill short gaps |
 | `transform` | `25_resampled` → `30_transform` | Apply column transforms: `sqrt_inv`, `cbrt_inv`, `log` (add or replace) |
-| `normalize` | `30_transform` → `35_normalized` | Min-max normalization of selected columns *(optional)* |
-| `aggregate` | `30_transform` → `40_aggregated` | Multi-window aggregation (10s, 60s, 5min, 1h) |
+| `normalize` | `30_transform` → `35_normalized` | Per-device percentile normalization (fit once, apply incrementally) |
+| `aggregate` | `35_normalized` → `40_aggregated` | Multi-window aggregation (10s, 60s, 5min, 1h) |
 | `to_postgres` | `40_aggregated` → PostgreSQL | Export to wide PostgreSQL tables (e.g. for Grafana) |
 | `exportcsv` | `40_aggregated` → `61_exportcsv` | Export per-device CSV with column renaming and timezone conversion |
 | `exportparquet` | `40_aggregated` → `62_exportparquet` | Export selected aggregation windows to parquet |
+| `exportduckdb` | `40_aggregated` → `63_exportduckdb` | Export all devices into one DuckDB file (one table per window). Needs `pip install pyperun[duckdb]` |
 
 ---
 
@@ -326,9 +330,9 @@ Each treatment exposes typed params with defaults, overridable in the flow or vi
 
 ---
 
-## External integration — Python API & Flask
+## External integration — Python API, REST & MCP
 
-Pyperun exposes a clean Python API in `pyperun.core.api` so external tools (Flask, scripts, AI agents) can query state and trigger runs **without going through the CLI**.
+Pyperun exposes a clean Python API in `pyperun.core.api` so external tools (the server, scripts, AI agents) can query state and trigger runs **without going through the CLI**.
 
 ### Python API
 
@@ -345,88 +349,118 @@ from pyperun.core.api import (
     # Dataset lifecycle
     init_dataset,         # init_dataset("MY-EXP", preset="full") → {dataset, flow, created_dirs, ...}
     delete_dataset,       # delete_dataset("MY-EXP") → {deleted_dirs, deleted_flows, ...}
-    # Run history
+    # Run control (non-blocking)
+    launch_flow,          # launch_flow("my-flow", time_from=...) → run_id  (subprocess, returns immediately)
+    list_running,         # → [{flow, run_id, step_index, steps_total, current_step, pid}]
+    stop_flow,            # stop_flow("my-flow") → {stopped: bool, ...}  (graceful SIGTERM between steps)
+    # Run history & summaries
     list_runs,            # list_runs(limit=50) → [{run_id, flow, started_at, status, n_steps_done}]
     get_run_events,       # get_run_events("a3f9b2c1") → [{ts, treatment, status, duration_ms, ...}]
+    get_flow_summary,     # get_flow_summary("my-flow") → latest.json triage (O(1)) or None
+    list_flow_summaries,  # → [{flow, status, ts_start, ...}]  sorted by ts_start desc
 )
-from pyperun.core.flow import run_flow
-from pyperun.core.logger import new_run_id
 ```
 
 All functions return plain dicts/lists — no printing, no side effects. Import them directly.
 
-### Flask API server
+### Unified server — `pyperun serve`
 
-The file `api_server.py` (at project root) provides a ready-to-use REST API:
+One process serves three façades plus the scheduler (no separate containers):
 
-```bash
-pip install flask
-flask --app api_server run --host 0.0.0.0 --port 5000
-
-# Production (single worker — runs are threads, not processes):
-pip install gunicorn
-gunicorn -w 1 -b 0.0.0.0:5000 api_server:app
+```
+/            → web UI (SPA)
+/api/*       → REST API
+/mcp         → MCP server (SSE, for LLM agents)
++ in-process scheduler tick
 ```
 
-Optional API key authentication:
+```bash
+pip install -e ".[server]"      # fastapi + uvicorn + mcp + croniter
+pyperun serve                   # 0.0.0.0:8000
+pyperun serve --port 9000
+```
+
+Flows run as **isolated subprocesses** — launching one returns a `run_id`
+immediately (non-blocking); poll for progress. Different flows run in parallel;
+the same flow can't overlap (per-flow lockfile). PostgreSQL/Grafana stay
+**external** — the server never bundles them.
+
+**Auth (optional).** Set `PYPERUN_TOKEN` to gate every façade. The token can be
+supplied via `Authorization: Bearer <token>`, `X-Pyperun-Token: <token>`,
+`?token=<token>` (browsers — sets a cookie), or the cookie. Refused requests
+return 401 and log the client IP (honouring `X-Forwarded-For`) so an external
+fail2ban filter can ban it. Set `PYPERUN_EMAIL` to show a contact on the 401
+page. `/health` is always open.
 
 ```bash
-export PYPERUN_API_KEY=my-secret-key
-flask --app api_server run ...
-# All requests must include: Authorization: Bearer my-secret-key
+PYPERUN_TOKEN=secret PYPERUN_EMAIL=admin@example.org pyperun serve
 ```
 
 **Endpoints:**
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | Health check |
+| `GET` | `/health` | Health check (always open) |
 | `GET` | `/api/flows` | List flows |
 | `GET` | `/api/flows/<flow>/steps` | Steps of a flow (passwords masked) |
-| `GET` | `/api/treatments` | List treatments |
-| `GET` | `/api/treatments/<name>` | Describe a treatment |
+| `GET` | `/api/treatments` · `/api/treatments/<name>` | List / describe treatments |
 | `GET` | `/api/presets` | List available presets |
 | `GET` | `/api/status` | Pipeline state for all datasets |
 | `POST` | `/api/datasets` | Create a new dataset (init) |
 | `DELETE` | `/api/datasets/<dataset>` | Delete a dataset and its flows |
 | `POST` | `/api/run/<flow>` | Launch a flow → returns `run_id` immediately (202) |
-| `GET` | `/api/runs?limit=50` | Run history |
-| `GET` | `/api/runs/<run_id>` | Events of a specific run (for polling) |
-
-**Exemples curl :**
+| `POST` | `/api/stop/<flow>` | Graceful stop (SIGTERM between steps) |
+| `GET` | `/api/running` | Flows running now, with live step k/N progress |
+| `GET` | `/api/runs?limit=50` · `/api/runs/<run_id>` | Run history / events (for polling) |
+| `GET` | `/api/summaries` · `/api/summaries/<flow>` | Latest-run triage (`latest.json`) |
+| `*` | `/mcp` | MCP server (SSE) — same tools, for LLM agents |
 
 ```bash
-# Créer un dataset
-curl -X POST http://localhost:5000/api/datasets \
-     -H "Content-Type: application/json" \
-     -d '{"dataset": "MY-EXPERIMENT", "preset": "full"}'
-# → {"dataset": "MY-EXPERIMENT", "flow": "my-experiment", "action": "created", "created_dirs": [...]}
-
-# Supprimer un dataset
-curl -X DELETE http://localhost:5000/api/datasets/MY-EXPERIMENT
-# → {"deleted_dataset": "MY-EXPERIMENT", "deleted_dirs": [...], "deleted_flows": [...]}
-
-# Lancer un flow
-curl -X POST http://localhost:5000/api/run/my-experiment \
-     -H "Content-Type: application/json" \
+# Launch a flow (auth header only needed if PYPERUN_TOKEN is set)
+curl -X POST http://localhost:8000/api/run/my-experiment \
+     -H "Authorization: Bearer secret" -H "Content-Type: application/json" \
      -d '{"from": "2026-04-01T00:00:00Z", "to": "2026-04-27T00:00:00Z"}'
-# → {"run_id": "a3f9b2c1", "flow": "my-experiment", "status": "started"}
+# → 202 {"run_id": "a3f9b2c1", "flow": "my-experiment", "status": "started"}
 
-# Suivre la progression (poll toutes les 2s jusqu'à status = success|error)
-curl http://localhost:5000/api/runs/a3f9b2c1
-# → {"run_id": "a3f9b2c1", "status": "running", "n_steps_done": 3, "n_steps_total": 6, "events": [...]}
+# Poll progress until status = success|error
+curl http://localhost:8000/api/runs/a3f9b2c1
+# → {"status": "running", "n_steps_done": 3, "n_steps_total": 6, "events": [...]}
+
+# What's running right now?
+curl http://localhost:8000/api/running
+# → [{"flow": "my-experiment", "run_id": "a3f9b2c1", "step_index": 3, "steps_total": 6, ...}]
+
+# Stop it
+curl -X POST http://localhost:8000/api/stop/my-experiment   # → {"stopped": true, ...}
 ```
 
-Optional POST body fields:
+Optional `POST /api/run/<flow>` body fields:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `from` | ISO 8601 string | Start of time window |
-| `to` | ISO 8601 string | End of time window |
+| `from` / `to` | ISO 8601 string | Time window |
 | `step` | string | Run a single named step |
-| `from_step` | string | Start from this step |
-| `to_step` | string | Stop at this step |
-| `output_mode` | string | `replace` (default), `reset` |
+| `from_step` / `to_step` | string | Start / stop at this step |
+| `output_mode` | string | `replace` (default) or `reset` |
+| `params` | object | Per-run param overrides |
+
+### MCP (for LLM agents)
+
+The same operations are exposed as MCP tools at `/mcp` (SSE). Point an MCP client at
+`http://<host>:8000/mcp/sse`. Standalone (no web UI): `python -m pyperun.mcp --sse`
+(needs `pip install pyperun[mcp]`).
+
+### Docker
+
+One container runs everything (UI + REST + MCP + scheduler). PostgreSQL/Grafana stay external.
+
+```bash
+PYPERUN_TOKEN=secret PYPERUN_EMAIL=admin@example.org docker compose up -d
+# → http://localhost:8000/  ·  /api/*  ·  /mcp/sse
+```
+
+`flows/` is mounted read-only (it may hold credentials); `datasets/` and `logs/`
+are read-write. Put a reverse proxy (Caddy/nginx) in front for TLS.
 
 ---
 
@@ -456,6 +490,8 @@ Scaffold with: `pyperun new my_treatment`
 ```
 pyperun/                          ← framework (this repo)
   cli.py                          ← pyperun command entry point
+  server.py                       ← unified ASGI server (UI + REST + MCP + scheduler)
+  mcp.py                          ← MCP tools (LLM-agent interface)
   core/
     flow.py                       ← runs a flow sequentially, returns run_id
     runner.py                     ← runs a single treatment
@@ -463,12 +499,12 @@ pyperun/                          ← framework (this repo)
     validator.py                  ← param validation + merging
     timefilter.py                 ← time range filtering by date range
     filename.py                   ← parquet naming conventions
-    logger.py                     ← jsonlines event log (logs/pyperun.log)
-    api.py                        ← Python API (list_flows, get_status, list_runs, ...)
+    logger.py                     ← 2-layer event log (latest.json + daily .jsonl)
+    scheduler.py                  ← cron tick (croniter)
+    api.py                        ← Python API (list_flows, launch_flow, list_running, ...)
   treatments/                     ← built-in treatments
     parse/ clean/ resample/ transform/ normalize/
-    aggregate/ to_postgres/ exportcsv/ exportparquet/
-api_server.py                     ← Flask REST API server (optional)
+    aggregate/ to_postgres/ exportcsv/ exportparquet/ exportduckdb/
 scripts/
   hourly_sync.sh                  ← cron: incremental run for one flow
   run_scheduled_flows.sh          ← cron: run all flows in scheduled_flows.txt
@@ -486,11 +522,15 @@ my-project/                       ← your experiment repo
       20_clean/
       25_resampled/
       30_transform/
+      35_normalized/
       40_aggregated/
-      61_exportcsv/
+      61_exportcsv/  62_exportparquet/  63_exportduckdb/
   treatments/                     ← optional custom treatments
   logs/
-    pyperun.log                   ← jsonlines event log (auto-created)
+    flows/<flow>/
+      latest.json                 ← O(1) triage of the last run
+      2026-05-20.jsonl            ← per-day treatment events
+    misc/2026-05-20.jsonl         ← runs launched without a flow
 ```
 
 ---
@@ -537,4 +577,4 @@ ruff check .                                          # lint
 - **Parquet filenames**: `<source>__<domain>__<YYYY-MM-DD>.parquet`
 - **Aggregated filenames**: `<source>__<domain>__<YYYY-MM-DD>__<window>.parquet`
 - **Default domains**: `bio_signal` (m0–m11, Int64) · `environment` (outdoor_temp, Float64)
-- **Logs**: `logs/pyperun.log` — jsonlines, one event per treatment step, with `run_id` for grouping
+- **Logs** (2-layer): `logs/flows/<flow>/latest.json` for O(1) triage of the last run, plus daily `logs/flows/<flow>/<YYYY-MM-DD>.jsonl` with one event per treatment step (grouped by `run_id`). `.jsonl` files older than 30 days are pruned automatically.

@@ -1,0 +1,111 @@
+# Getting Started
+
+From zero to a processed dataset in 5 minutes. For the full reference, see [README.md](README.md).
+
+---
+
+## 1. Install
+
+```bash
+git clone https://github.com/julienby/pyperun ~/pyperun
+cd ~/pyperun
+pip install -e .
+```
+
+Check it works:
+
+```bash
+pyperun --help
+```
+
+> **`pyperun: command not found`?** Add `~/.local/bin` to your PATH:
+> ```bash
+> echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc && source ~/.bashrc
+> ```
+
+Run every `pyperun` command from your **project directory** — the one holding `flows/` and `datasets/`.
+
+---
+
+## 2. Create a dataset
+
+```bash
+pyperun init MY-EXPERIMENT
+```
+
+This scaffolds:
+
+- `datasets/MY-EXPERIMENT/00_raw/` — where your raw CSV goes
+- `flows/my-experiment.json` — a ready-to-edit flow definition
+
+---
+
+## 3. Drop in your raw data
+
+```bash
+cp /path/to/data/*.csv datasets/MY-EXPERIMENT/00_raw/
+```
+
+Expected format — **no header**, semicolon-delimited, `key:value` pairs:
+
+```
+2026-01-20T09:07:58.142308Z;m0:10;m1:12;outdoor_temp:18.94
+2026-01-20T09:07:59.142308Z;m0:11;m1:13;outdoor_temp:18.95
+```
+
+---
+
+## 4. Run the pipeline
+
+```bash
+pyperun flow my-experiment
+```
+
+```
+[flow] Starting 'my-experiment' (6 steps)  run_id=a3f9b2c1
+[flow] Step 1/6: parse
+[flow] Step 2/6: clean
+...
+[flow] Completed 'my-experiment' successfully  run_id=a3f9b2c1
+```
+
+The pipeline turns raw CSV into aggregated, ML-ready parquet:
+
+```
+parse → clean → resample → transform → normalize → aggregate → export…
+```
+
+---
+
+## 5. Check the result
+
+```bash
+pyperun status
+```
+
+```
+my-experiment (MY-EXPERIMENT)
+  parse       10_parsed      84 files   last: 2026-02-17
+  clean       20_clean       84 files   last: 2026-02-17
+  ...
+  -> up-to-date
+```
+
+Outputs land in `datasets/MY-EXPERIMENT/40_aggregated/` (and any export dirs your flow declares).
+
+---
+
+## Useful next commands
+
+```bash
+pyperun flow my-experiment --step clean              # re-run one step
+pyperun flow my-experiment --from-step resample      # from a step to the end
+pyperun flow my-experiment --from 2026-02-01T00:00:00Z --to 2026-02-10T00:00:00Z  # time window
+pyperun flow my-experiment --dry-run                 # preview, no writes
+
+pyperun list flows                                   # what can I run?
+pyperun describe aggregate                           # params of a treatment
+```
+
+To run incrementally on a server, or expose the REST/MCP API and web UI
+(`pyperun serve`), see **[README.md](README.md)**.
