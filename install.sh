@@ -38,7 +38,8 @@ ok()   { printf '%s✓%s %s\n' "$c_ok" "$c_off" "$*"; }
 die()  { printf '%s✗%s %s\n' "$c_err" "$c_off" "$*" >&2; exit 1; }
 
 # A tty for prompts even when the script is piped from curl.
-if [ -r /dev/tty ]; then TTY=/dev/tty; else TTY=; fi
+# Probe that /dev/tty can actually be opened (it exists but is unusable under CI).
+if { : > /dev/tty; } 2>/dev/null; then TTY=/dev/tty; else TTY=; fi
 ask() { # ask <prompt> <default> -> echoes answer
   local prompt="$1" default="$2" reply=""
   if [ -n "$TTY" ]; then
