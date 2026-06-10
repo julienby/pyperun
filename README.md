@@ -24,6 +24,26 @@ Pyperun is a **framework**: install it once, then describe your experiment as a 
 
 ## Installation
 
+### Docker (recommended) — one-liner, multi-instance, data-safe
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/julienby/pyperun/master/install.sh | bash -s -- my-instance
+```
+
+Builds a shared `pyperun:latest` image once and starts an instance (UI + REST +
+MCP + scheduler) at an auto-picked free port. Each instance lives in
+`~/.pyperun/<instance>/` with its own `data/` and `.env`. **Re-running updates
+the code and restarts; your `flows/`, `datasets/`, `logs/` are never
+overwritten.** It prints the URL and access token at the end.
+
+```bash
+# Non-interactive overrides
+PORT=8080 TOKEN=secret EMAIL=admin@example.org \
+  curl -fsSL https://raw.githubusercontent.com/julienby/pyperun/master/install.sh | bash -s -- my-instance
+```
+
+### From source (CLI only)
+
 ```bash
 git clone https://github.com/julienby/pyperun ~/pyperun
 cd ~/pyperun
@@ -87,6 +107,31 @@ my-experiment (MY-EXPERIMENT)
   ...
   -> up-to-date
 ```
+
+---
+
+## Demo / reference dataset
+
+`scripts/seed_demo.py` seeds **DEMO**, pyperun's canonical end-to-end test
+fixture: a small, deterministic synthetic dataset (2 devices × 3 days, 1 Hz)
+with injected spikes, duplicate timestamps and short gaps so every step does
+real work. Use it to smoke-test an install or populate the UI.
+
+```bash
+python scripts/seed_demo.py     # seeds datasets/DEMO/ + flows/demo.json
+pyperun flow demo               # runs the full on-disk pipeline (postgres skipped)
+```
+
+For a Docker instance, flows/ is read-only in the container — seed on the host
+data dir, then run inside:
+
+```bash
+python scripts/seed_demo.py --target ~/.pyperun/my-instance/data
+docker exec pyperun-my-instance pyperun flow demo
+```
+
+This is **the** reference dataset — grow it over time (more devices, edge cases)
+to widen coverage.
 
 ---
 
@@ -234,7 +279,7 @@ When `dataset` is set, `input`/`output` paths are relative to `datasets/<DATASET
 | `resample` | `20_clean` → `25_resampled` | Regular 1s grid, forward-fill short gaps |
 | `transform` | `25_resampled` → `30_transform` | Apply column transforms: `sqrt_inv`, `cbrt_inv`, `log` (add or replace) |
 | `normalize` | `30_transform` → `35_normalized` | Per-device percentile normalization (fit once, apply incrementally) |
-| `aggregate` | `35_normalized` → `40_aggregated` | Multi-window aggregation (10s, 60s, 5min, 1h) |
+| `aggregate` | `35_normalized` → `40_aggregated` | Multi-window aggregation (1s, 10s, 60s, 5min, 1h) |
 | `to_postgres` | `40_aggregated` → PostgreSQL | Export to wide PostgreSQL tables (e.g. for Grafana) |
 | `exportcsv` | `40_aggregated` → `61_exportcsv` | Export per-device CSV with column renaming and timezone conversion |
 | `exportparquet` | `40_aggregated` → `62_exportparquet` | Export selected aggregation windows to parquet |
@@ -275,7 +320,7 @@ Each treatment exposes typed params with defaults, overridable in the flow or vi
 | Param | Default | Description |
 |-------|---------|-------------|
 | `freq` | `"1s"` | Resample frequency |
-| `max_gap_fill_s` | `2` | Max gap (seconds) to forward-fill |
+| `max_gap_fill_s` | `20` | Max gap (seconds) to forward-fill |
 | `agg_method` | per-domain | Aggregation method when flooring to `freq` |
 
 </details>
@@ -294,8 +339,8 @@ Each treatment exposes typed params with defaults, overridable in the flow or vi
 
 | Param | Default | Description |
 |-------|---------|-------------|
-| `windows` | `["10s","60s","5min","1h"]` | Time windows |
-| `metrics` | `["mean","std","min","max"]` | Aggregation functions |
+| `windows` | `["1s","10s","60s","5min","1h"]` | Time windows |
+| `metrics` | `["mean","std"]` | Aggregation functions |
 
 </details>
 
@@ -453,6 +498,10 @@ The same operations are exposed as MCP tools at `/mcp` (SSE). Point an MCP clien
 ### Docker
 
 One container runs everything (UI + REST + MCP + scheduler). PostgreSQL/Grafana stay external.
+
+The easiest path is the [one-liner installer](#docker-recommended--one-liner-multi-instance-data-safe)
+(handles build, port, token, multi-instance, data-safe updates). To drive
+Compose yourself instead:
 
 ```bash
 PYPERUN_TOKEN=secret PYPERUN_EMAIL=admin@example.org docker compose up -d

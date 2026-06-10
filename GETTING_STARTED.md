@@ -6,6 +6,17 @@ From zero to a processed dataset in 5 minutes. For the full reference, see [READ
 
 ## 1. Install
 
+**Just want the web UI + server?** One line — builds the image, starts a
+data-safe instance, prints its URL and token:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/julienby/pyperun/master/install.sh | bash -s -- my-instance
+```
+
+Then jump to [Try it on the demo dataset](#try-it-on-the-demo-dataset).
+
+**Prefer the CLI from source?**
+
 ```bash
 git clone https://github.com/julienby/pyperun ~/pyperun
 cd ~/pyperun
@@ -92,6 +103,27 @@ my-experiment (MY-EXPERIMENT)
 ```
 
 Outputs land in `datasets/MY-EXPERIMENT/40_aggregated/` (and any export dirs your flow declares).
+
+---
+
+## Try it on the demo dataset
+
+No data of your own yet? Seed **DEMO**, the built-in reference dataset, and run
+it end-to-end — a good way to verify any install:
+
+```bash
+python scripts/seed_demo.py     # creates datasets/DEMO/ + flows/demo.json
+pyperun flow demo
+pyperun status                  # → demo (DEMO) ... up-to-date
+```
+
+For a Docker instance (flows/ is read-only inside the container), seed on the
+host then run inside:
+
+```bash
+python scripts/seed_demo.py --target ~/.pyperun/my-instance/data
+docker exec pyperun-my-instance pyperun flow demo
+```
 
 ---
 

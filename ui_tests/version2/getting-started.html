@@ -87,7 +87,10 @@
         <span class="step-num">1</span>
         <h2 class="text-xl font-semibold">Installer</h2>
       </div>
-      <p class="muted text-sm">Depuis la racine du projet, en mode éditable avec les dépendances de dev :</p>
+      <p class="muted text-sm">Le plus simple — un one-liner qui build l'image, démarre une instance (UI + API + MCP + scheduler) et affiche son URL + token :</p>
+      <div class="code"><span class="c"># Docker — multi-instance, données préservées à chaque mise à jour</span>
+curl -fsSL https://raw.githubusercontent.com/julienby/pyperun/master/install.sh | bash -s -- <span class="p">my-instance</span></div>
+      <p class="muted text-sm pt-2">Ou en local, depuis la racine du projet, en mode éditable :</p>
       <div class="code"><span class="c"># installe pyperun + outils de dev</span>
 pip install -e <span class="p">".[dev]"</span>
 
@@ -156,6 +159,10 @@ pyperun flow my-experiment <span class="p">--from</span> 2026-01-01T00:00:00Z <s
 
 <span class="c"># tout effacer et reprendre de zéro</span>
 pyperun flow my-experiment <span class="p">--output-mode</span> reset</div>
+      <p class="text-xs muted">
+        💡 Pas encore de données ? Sème le dataset de référence <span class="mono">DEMO</span> et teste le pipeline de bout en bout :
+        <span class="mono">python scripts/seed_demo.py</span> puis <span class="mono">pyperun flow demo</span>.
+      </p>
     </section>
 
     <!-- 5. Status -->
@@ -203,7 +210,7 @@ pyperun flow my-experiment <span class="p">--from-step</span> resample</div>
           <tr><td>3</td><td class="mono accent">resample</td><td class="mono">20_clean → 25_resampled</td><td class="muted">grille régulière 1 s, ffill</td></tr>
           <tr><td>4</td><td class="mono accent">transform</td><td class="mono">25_resampled → 30_transform</td><td class="muted">maths déclaratives (log, cbrt_inv)</td></tr>
           <tr><td>5</td><td class="mono accent">normalize</td><td class="mono">30_transform → 35_normalized</td><td class="muted">normalisation par percentile</td></tr>
-          <tr><td>6</td><td class="mono accent">aggregate</td><td class="mono">35_normalized → 40_aggregated</td><td class="muted">fenêtres 10s/60s/5min/1h</td></tr>
+          <tr><td>6</td><td class="mono accent">aggregate</td><td class="mono">35_normalized → 40_aggregated</td><td class="muted">fenêtres 1s/10s/60s/5min/1h</td></tr>
           <tr><td>7</td><td class="mono accent">to_postgres</td><td class="mono">40_aggregated → PostgreSQL</td><td class="muted"><span class="badge badge-warning text-[9px]">externe</span> tables Grafana</td></tr>
           <tr><td>8</td><td class="mono accent">exportcsv</td><td class="mono">40_aggregated → 61_exportcsv</td><td class="muted">CSV par device</td></tr>
           <tr><td>9</td><td class="mono accent">exportparquet</td><td class="mono">40_aggregated → 62_exportparquet</td><td class="muted">parquet unique par device</td></tr>
