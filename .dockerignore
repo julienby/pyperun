@@ -1,0 +1,13 @@
+datasets/
+flows/
+logs/
+__pycache__/
+*.egg-info/
+*.pyc
+*.tar.gz
+.git/
+.pytest_cache/
+.ruff_cache/
+doc/
+
+# ui_tests/ is intentionally NOT ignored — it is baked into the image (see Dockerfile)

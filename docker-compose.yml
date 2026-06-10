@@ -1,0 +1,25 @@
+services:
+
+  # Unified server — one process: UI (/) + REST (/api/*) + MCP (/mcp) + scheduler.
+  #   Web UI:    http://localhost:8000/
+  #   REST:      http://localhost:8000/api/...
+  #   MCP (SSE): http://localhost:8000/mcp/sse
+  pyperun:
+    build: .
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      # Set a token to gate every façade (UI + REST + MCP). Empty = auth disabled.
+      - PYPERUN_TOKEN=${PYPERUN_TOKEN:-}
+      - PYPERUN_EMAIL=${PYPERUN_EMAIL:-}
+      # Scheduler cadence in seconds (the tick is folded into this process).
+      - PYPERUN_TICK_INTERVAL=${PYPERUN_TICK_INTERVAL:-60}
+    volumes:
+      - ./flows:/app/flows:ro          # may contain credentials → read-only
+      - ./datasets:/app/datasets
+      - ./logs:/app/logs
+      - ./schedules.json:/app/schedules.json:ro
+      - ./ui_tests:/app/ui_tests:ro    # static SPA served at /
+      # Raw data override if 00_raw is external:
+      # - /path/to/raw/data:/app/datasets/MY-DATASET/00_raw:ro
