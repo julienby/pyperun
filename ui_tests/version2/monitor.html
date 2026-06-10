@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyperun · Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="bg-grid" onload="Pyperun.requireAuth()">
+
+<div class="app" data-page="monitor">
+  <div class="main">
+
+    <header class="topbar">
+      <h1 class="topbar-title">Monitor</h1>
+      <select class="input" name="flow"
+        hx-get="/api/flows/stab97/active-run"
+        hx-target="#run-meta"
+        hx-trigger="change">
+        <option value="stab97" selected>stab97</option>
+        <option value="my-experiment">my-experiment</option>
+        <option value="nightly-backfill">nightly-backfill</option>
+      </select>
+      <span id="run-meta" class="badge badge-running">
+        <span class="w-1.5 h-1.5 rounded-full pulse" style="background:currentColor"></span>
+        étape 3/9 · resample
+      </span>
+      <div class="topbar-actions">
+        <button class="btn btn-danger"
+          hx-delete="/api/runs/stab97/stop"
+          hx-confirm="SIGTERM sur le PID du lockfile ?"
+          hx-swap="none">■ Stop</button>
+        <button class="btn btn-success"
+          hx-post="/api/run/stab97"
+          hx-vals='{"from":"2026-01-01T00:00:00Z","to":"2026-02-01T00:00:00Z"}'
+          hx-swap="none">▶ Relancer</button>
+      </div>
+    </header>
+
+    <main class="content stack">
+
+      <!-- Fenêtre temporelle -->
+      <div class="card p-3 flex flex-wrap items-center gap-3">
+        <span class="text-xs muted">Fenêtre</span>
+        <input type="datetime-local" class="input mono" value="2026-01-01T00:00">
+        <span class="text-xs muted">→</span>
+        <input type="datetime-local" class="input mono" value="2026-02-01T00:00">
+      </div>
+
+      <!-- O8 : progression étape k/N — polling 2s -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-medium text-sm">Pipeline · <span class="mono accent">a1b2c3d4</span></h2>
+          <span class="text-xs htmx-indicator muted">↻ polling 2s</span>
+        </div>
+        <div id="pipeline-progress"
+          hx-get="fragments/pipeline-steps.html"
+          hx-trigger="load, every 2s"
+          hx-swap="innerHTML">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- O4 : événements live -->
+        <div class="card p-4 flex flex-col" style="min-height:320px">
+          <h2 class="text-xs font-medium mb-3 muted">Événements · O4</h2>
+          <div class="flex-1 overflow-auto"
+            id="run-events"
+            hx-get="fragments/run-events.html"
+            hx-trigger="load, every 2s"
+            hx-swap="innerHTML">
+          </div>
+        </div>
+
+        <!-- Waterfall durées -->
+        <div class="card p-4">
+          <h2 class="text-xs font-medium mb-2 muted">Durées par étape (s)</h2>
+          <div id="chart-step-waterfall" class="h-64"></div>
+        </div>
+      </div>
+
+      <!-- O2 : statut fichiers pipeline -->
+      <div class="card p-4">
+        <h2 class="text-xs font-medium mb-3 muted">État disque · get_status (O2)</h2>
+        <div class="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2 text-center text-[10px]">
+          <div class="p-2 rounded border" style="border-color:var(--success);background:rgba(20,184,166,0.08)">
+            <div class="mono font-medium">00_raw</div>
+            <div class="muted">142 fichiers</div>
+          </div>
+          <div class="p-2 rounded border" style="border-color:var(--success);background:rgba(20,184,166,0.08)">
+            <div class="mono font-medium">10_parsed</div>
+            <div class="muted">284 pq</div>
+          </div>
+          <div class="p-2 rounded border" style="border-color:var(--success);background:rgba(20,184,166,0.08)">
+            <div class="mono font-medium">20_clean</div>
+            <div class="muted">284 pq</div>
+          </div>
+          <div class="p-2 rounded border" style="border-color:var(--running);background:rgba(59,130,246,0.08)">
+            <div class="mono font-medium" style="color:var(--running)">25_resampled</div>
+            <div class="muted">en cours…</div>
+          </div>
+          <div class="p-2 rounded border bordered">
+            <div class="mono muted">30_transform</div>
+            <div class="muted">—</div>
+          </div>
+          <div class="p-2 rounded border bordered">
+            <div class="mono muted">35_normalized</div>
+          </div>
+          <div class="p-2 rounded border bordered">
+            <div class="mono muted">40_aggregated</div>
+          </div>
+          <div class="p-2 rounded border bordered">
+            <div class="mono muted">61_exportcsv</div>
+          </div>
+          <div class="p-2 rounded border bordered">
+            <div class="mono muted">63_duckdb</div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="js/pyperun.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/charts.js"></script>
+</body>
+</html>

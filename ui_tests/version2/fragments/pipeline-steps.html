@@ -1,0 +1,43 @@
+<!-- Fragment HTMX — GET /api/runs/{run_id}/progress (O8 : étape k/N) -->
+<div class="flex items-start gap-1 overflow-x-auto pb-2">
+  <div class="pipeline-step done flex flex-col items-center gap-1.5 min-w-[72px]">
+    <div class="step-circle text-white">✓</div>
+    <span class="text-[10px] mono" style="color:var(--success)">parse</span>
+    <span class="text-[10px]" style="color:var(--text-muted)">5.8s</span>
+  </div>
+  <div class="pipeline-step done flex flex-col items-center gap-1.5 min-w-[72px]">
+    <div class="step-circle text-white">✓</div>
+    <span class="text-[10px] mono" style="color:var(--success)">clean</span>
+    <span class="text-[10px]" style="color:var(--text-muted)">12.1s</span>
+  </div>
+  <div class="pipeline-step active flex flex-col items-center gap-1.5 min-w-[72px]">
+    <div class="step-circle text-white pulse">3</div>
+    <span class="text-[10px] mono font-medium" style="color:var(--running)">resample</span>
+    <span class="text-[10px]" style="color:var(--text-muted)">en cours…</span>
+  </div>
+  <div class="pipeline-step pending flex flex-col items-center gap-1.5 min-w-[72px]">
+    <div class="step-circle" style="color:var(--text-muted)">4</div>
+    <span class="text-[10px] mono" style="color:var(--text-muted)">transform</span>
+  </div>
+  <div class="pipeline-step pending flex flex-col items-center gap-1.5 min-w-[72px]">
+    <div class="step-circle" style="color:var(--text-muted)">5</div>
+    <span class="text-[10px] mono" style="color:var(--text-muted)">normalize</span>
+  </div>
+  <div class="pipeline-step pending flex flex-col items-center gap-1.5 min-w-[72px]">
+    <div class="step-circle" style="color:var(--text-muted)">6</div>
+    <span class="text-[10px] mono" style="color:var(--text-muted)">aggregate</span>
+  </div>
+  <div class="pipeline-step pending flex flex-col items-center gap-1.5 min-w-[72px]">
+    <div class="step-circle" style="color:var(--text-muted)">7</div>
+    <span class="text-[10px] mono" style="color:var(--text-muted)">to_pg</span>
+  </div>
+  <div class="pipeline-step pending flex flex-col items-center gap-1.5 min-w-[72px]">
+    <div class="step-circle" style="color:var(--text-muted)">8</div>
+    <span class="text-[10px] mono" style="color:var(--text-muted)">exportcsv</span>
+  </div>
+  <div class="pipeline-step pending flex flex-col items-center gap-1.5 min-w-[72px]">
+    <div class="step-circle" style="color:var(--text-muted)">9</div>
+    <span class="text-[10px] mono" style="color:var(--text-muted)">duckdb</span>
+  </div>
+</div>
+<p class="text-xs mt-2" style="color:var(--text-muted)">Étape <strong style="color:var(--running)">3 / 9</strong> · resample · run <span class="mono">a1b2c3d4</span></p>

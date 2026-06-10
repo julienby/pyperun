@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyperun · Schedules</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="bg-grid" onload="Pyperun.requireAuth()">
+
+<div class="app" data-page="schedules">
+  <div class="main">
+
+    <header class="topbar">
+      <h1 class="topbar-title">Schedules</h1>
+      <span class="badge badge-success">tick in-process ASGI (S4)</span>
+      <div class="topbar-actions">
+        <button class="btn btn-primary"
+          onclick="document.getElementById('schedule-form').classList.toggle('hidden')">+ Ajouter</button>
+      </div>
+    </header>
+
+    <main class="content stack">
+
+      <!-- S2 : formulaire upsert -->
+      <div id="schedule-form" class="card p-5 hidden">
+        <div class="card-head">Nouveau schedule · upsert_schedule (S2)</div>
+        <form class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4"
+          hx-post="/api/schedules"
+          hx-swap="none"
+          hx-on::after-request="alert('Schedule enregistré')">
+          <div>
+            <label class="field-label">Flow</label>
+            <select class="input w-full" name="flow">
+              <option>stab97</option>
+              <option>nightly-backfill</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label">Cron</label>
+            <input class="input w-full mono" name="cron" value="0 6 * * *" placeholder="0 6 * * *">
+          </div>
+          <div>
+            <label class="field-label">Timezone</label>
+            <input class="input w-full mono" name="tz" value="Europe/Paris">
+          </div>
+          <div>
+            <label class="field-label">Params JSON</label>
+            <input class="input w-full mono" name="params" value='{"from":"-1d"}'>
+          </div>
+          <div class="col-span-full flex gap-2">
+            <button type="submit" class="btn btn-primary">Enregistrer</button>
+            <button type="button" class="btn btn-ghost" onclick="document.getElementById('schedule-form').classList.add('hidden')">Annuler</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- S1 : liste schedules -->
+      <div class="card overflow-x-auto"
+        hx-get="/api/schedules"
+        hx-trigger="load"
+        hx-swap="innerHTML">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Flow</th>
+              <th>Cron</th>
+              <th>TZ</th>
+              <th>Prochain</th>
+              <th>Dernier</th>
+              <th>État</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="mono font-medium">stab97</td>
+              <td class="mono text-xs">0 6 * * *</td>
+              <td class="text-xs">Europe/Paris</td>
+              <td class="text-xs">demain 06:00</td>
+              <td class="text-xs">
+                <span class="badge badge-success text-[10px]">ok</span>
+                <span class="muted">auj. 06:00</span>
+              </td>
+              <td><span class="badge badge-success">enabled</span></td>
+              <td class="text-right space-x-1 whitespace-nowrap">
+                <button class="btn btn-ghost btn-sm"
+                  hx-put="/api/schedules/stab97"
+                  hx-vals='{"enabled":false}'
+                  hx-swap="none">Désactiver</button>
+                <button class="btn btn-danger btn-sm"
+                  hx-delete="/api/schedules/stab97"
+                  hx-confirm="Supprimer ce schedule ?"
+                  hx-swap="none">✕</button>
+              </td>
+            </tr>
+            <tr>
+              <td class="mono font-medium">nightly-backfill</td>
+              <td class="mono text-xs">0 2 * * *</td>
+              <td class="text-xs">UTC</td>
+              <td class="text-xs">demain 02:00</td>
+              <td class="text-xs">
+                <span class="badge badge-error text-[10px]">err</span>
+                <span class="muted">auj. 02:00</span>
+              </td>
+              <td><span class="badge badge-success">enabled</span></td>
+              <td class="text-right space-x-1 whitespace-nowrap">
+                <button class="btn btn-ghost btn-sm">Éditer</button>
+                <button class="btn btn-danger btn-sm"
+                  hx-delete="/api/schedules/nightly-backfill"
+                  hx-swap="none">✕</button>
+              </td>
+            </tr>
+            <tr style="opacity:0.5">
+              <td class="mono">csv-export</td>
+              <td class="mono text-xs">0 8 * * 1</td>
+              <td class="text-xs">Europe/Paris</td>
+              <td class="text-xs">—</td>
+              <td class="text-xs muted">jamais</td>
+              <td><span class="badge badge-idle">disabled</span></td>
+              <td class="text-right whitespace-nowrap">
+                <button class="btn btn-success btn-sm"
+                  hx-put="/api/schedules/csv-export"
+                  hx-vals='{"enabled":true}'
+                  hx-swap="none">Activer</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-xs muted">
+        Fichier : <span class="mono">schedules.json</span> ·
+        API : <span class="mono">list_schedules</span> · <span class="mono">upsert_schedule</span> · <span class="mono">remove_schedule</span>
+      </p>
+    </main>
+  </div>
+</div>
+
+<script src="js/pyperun.js"></script>
+<script src="js/layout.js"></script>
+</body>
+</html>

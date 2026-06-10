@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyperun · Catalog</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, 'Inter', system-ui, sans-serif; }
+    .mono { font-family: ui-monospace, 'Menlo', monospace; }
+    .nav-item { display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:6px; font-size:13px; color:#6b7280; cursor:pointer; user-select:none; }
+    .nav-item:hover { background:#f3f4f6; color:#111827; }
+    .nav-item.active { background:#eff6ff; color:#2563eb; font-weight:500; }
+    ::-webkit-scrollbar { width:4px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:#e5e7eb; border-radius:2px; }
+  </style>
+</head>
+<body class="flex h-screen bg-stone-50 text-gray-900 text-sm">
+
+<!-- SIDEBAR -->
+<aside class="w-48 bg-white border-r border-gray-200 flex flex-col shrink-0">
+  <div class="px-4 py-5 border-b border-gray-100">
+    <div class="flex items-center gap-2">
+      <div class="w-6 h-6 bg-blue-600 rounded flex items-center justify-center shrink-0">
+        <span class="text-white text-xs font-bold mono">P</span>
+      </div>
+      <span class="font-semibold text-gray-900">Pyperun</span>
+    </div>
+  </div>
+  <nav class="flex-1 p-2 space-y-0.5 overflow-y-auto">
+    <a href="dashboard.html" class="nav-item">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </a>
+    <a href="monitor.html" class="nav-item">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Monitor
+    </a>
+    <a href="editor.html" class="nav-item">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Editor
+    </a>
+    <div class="nav-item active">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.2" fill="currentColor"/><circle cx="3" cy="12" r="1.2" fill="currentColor"/><circle cx="3" cy="18" r="1.2" fill="currentColor"/></svg>
+      Catalog
+    </div>
+    <a href="history.html" class="nav-item">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      History
+    </a>
+  </nav>
+  <div class="px-4 py-3 border-t border-gray-100">
+    <span class="text-xs text-gray-400 mono">v0.1.0</span>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="flex-1 flex flex-col overflow-hidden">
+
+  <!-- Topbar -->
+  <header class="bg-white border-b border-gray-200 px-6 h-12 flex items-center gap-3 shrink-0">
+    <h1 class="font-semibold text-gray-900">Catalog</h1>
+    <span class="text-xs text-gray-400">9 treatments</span>
+    <div class="ml-auto">
+      <input type="text" placeholder="Search…" class="text-xs border border-gray-200 rounded px-3 h-7 w-48 bg-white focus:outline-none focus:border-blue-300">
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="flex-1 overflow-auto p-6">
+
+    <!-- Pipeline flow diagram -->
+    <div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm mb-5">
+      <div class="text-xs text-gray-500 font-medium mb-3">Pipeline · 9 steps</div>
+      <div class="flex items-center gap-1 flex-wrap text-xs mono">
+        <span class="bg-gray-100 text-gray-600 rounded px-2 py-1">00_raw</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1">parse</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-gray-100 text-gray-600 rounded px-2 py-1">10_parsed</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1">clean</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-gray-100 text-gray-600 rounded px-2 py-1">20_clean</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1">resample</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-gray-100 text-gray-600 rounded px-2 py-1">25_resampled</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1">transform</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-gray-100 text-gray-600 rounded px-2 py-1">30_transform</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1">normalize</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-gray-100 text-gray-600 rounded px-2 py-1">35_normalized</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-blue-50 text-blue-700 border border-blue-100 rounded px-2 py-1">aggregate</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-gray-100 text-gray-600 rounded px-2 py-1">40_aggregated</span>
+        <span class="text-gray-300">→</span>
+        <span class="bg-violet-50 text-violet-700 border border-violet-100 rounded px-2 py-1">to_postgres</span>
+        <span class="text-gray-300 ml-1 mr-1">/</span>
+        <span class="bg-violet-50 text-violet-700 border border-violet-100 rounded px-2 py-1">exportcsv</span>
+        <span class="text-gray-300 ml-1 mr-1">/</span>
+        <span class="bg-violet-50 text-violet-700 border border-violet-100 rounded px-2 py-1">exportparquet</span>
+      </div>
+    </div>
+
+    <!-- Treatment cards -->
+    <div class="space-y-3">
+
+      <!-- parse -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-8 h-8 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-xs font-bold mono">1</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold mono text-gray-900">parse</span>
+              <span class="text-xs text-gray-400 mono bg-gray-100 rounded px-1.5 py-0.5">00_raw → 10_parsed</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Parse raw key:value CSV files into typed Parquet, split by domain and day.</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">delimiter</span> <span class="mono">;</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">tz</span> <span class="mono">UTC</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">domains</span> <span class="mono">bio_signal, environment</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- clean -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-8 h-8 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-xs font-bold mono">2</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold mono text-gray-900">clean</span>
+              <span class="text-xs text-gray-400 mono bg-gray-100 rounded px-1.5 py-0.5">10_parsed → 20_clean</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Drop duplicates, enforce min/max bounds, remove spikes via rolling median.</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">drop_duplicates</span> <span class="mono">true</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">spike_window</span> <span class="mono">5</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">spike_threshold</span> <span class="mono">3.0</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">domains</span> <span class="mono">per-domain bounds</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- resample -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-8 h-8 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-xs font-bold mono">3</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold mono text-gray-900">resample</span>
+              <span class="text-xs text-gray-400 mono bg-gray-100 rounded px-1.5 py-0.5">20_clean → 25_resampled</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Regularise to 1 s grid: floor to second, forward-fill small gaps.</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">freq</span> <span class="mono">1s</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">max_gap_fill_s</span> <span class="mono">0</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">agg_method</span> <span class="mono">last</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- transform -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-8 h-8 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-xs font-bold mono">4</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold mono text-gray-900">transform</span>
+              <span class="text-xs text-gray-400 mono bg-gray-100 rounded px-1.5 py-0.5">25_resampled → 30_transform</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Apply declarative math transforms (cbrt_inv, log) to selected columns.</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">functions</span> <span class="mono">cbrt_inv, log</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">mode</span> <span class="mono">add | replace</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">target</span> <span class="mono">domain + columns</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- normalize -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-8 h-8 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-xs font-bold mono">5</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold mono text-gray-900">normalize</span>
+              <span class="text-xs text-gray-400 mono bg-gray-100 rounded px-1.5 py-0.5">30_transform → 35_normalized</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Per-device percentile normalization: fit once, apply incrementally.</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">method</span> <span class="mono">percentile | minmax</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">fit</span> <span class="mono">true | false</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">percentile_min/max</span> <span class="mono">1 / 99</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">clip</span> <span class="mono">true</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- aggregate -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-8 h-8 bg-blue-50 border border-blue-100 rounded-lg flex items-center justify-center text-blue-600 text-xs font-bold mono">6</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold mono text-gray-900">aggregate</span>
+              <span class="text-xs text-gray-400 mono bg-gray-100 rounded px-1.5 py-0.5">35_normalized → 40_aggregated</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Multi-window aggregation with configurable metrics. One Parquet per window per device per day.</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">windows</span> <span class="mono">10s, 60s, 5min, 1h</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">metrics</span> <span class="mono">mean, std, min, max</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- to_postgres -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-8 h-8 bg-violet-50 border border-violet-100 rounded-lg flex items-center justify-center text-violet-600 text-xs font-bold mono">7</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold mono text-gray-900">to_postgres</span>
+              <span class="text-xs text-gray-400 mono bg-gray-100 rounded px-1.5 py-0.5">40_aggregated → PostgreSQL</span>
+              <span class="text-xs bg-violet-50 text-violet-600 border border-violet-200 rounded px-1.5 py-0.5">external</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Export wide tables to PostgreSQL for Grafana. Delete + insert per day.</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">host / dbname / user / password</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">table_template</span> <span class="mono">DATASET__{aggregation}</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">mode</span> <span class="mono">append | replace | reset</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- exportcsv -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-8 h-8 bg-violet-50 border border-violet-100 rounded-lg flex items-center justify-center text-violet-600 text-xs font-bold mono">8</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold mono text-gray-900">exportcsv</span>
+              <span class="text-xs text-gray-400 mono bg-gray-100 rounded px-1.5 py-0.5">40_aggregated → 61_exportcsv</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Export aggregated data to CSV per device, with column selection, renaming, and timezone conversion.</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">aggregation</span> <span class="mono">10s</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">domain</span> <span class="mono">bio_signal</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">tz</span> <span class="mono">Europe/Paris</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">columns</span> <span class="mono">source → export name</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- exportparquet -->
+      <div class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
+        <div class="flex items-start gap-4">
+          <div class="shrink-0 w-8 h-8 bg-violet-50 border border-violet-100 rounded-lg flex items-center justify-center text-violet-600 text-xs font-bold mono">9</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold mono text-gray-900">exportparquet</span>
+              <span class="text-xs text-gray-400 mono bg-gray-100 rounded px-1.5 py-0.5">40_aggregated → 62_exportparquet</span>
+            </div>
+            <p class="text-xs text-gray-500 mb-3">Export aggregated data to a single Parquet file per device, with optional column selection and renaming.</p>
+            <div class="flex flex-wrap gap-2 text-xs">
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">aggregation</span> <span class="mono">60s</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">domain</span> <span class="mono">bio_signal</span></span>
+              <span class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-600"><span class="text-gray-400">columns</span> <span class="mono">optional rename dict</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

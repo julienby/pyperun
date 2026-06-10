@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyperun · Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="bg-grid" onload="Pyperun.requireAuth()">
+
+<div class="app" data-page="dashboard">
+  <div class="main">
+
+    <header class="topbar">
+      <h1 class="topbar-title">Flows</h1>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost"
+          hx-get="fragments/summary-strip.html"
+          hx-target="#summary-strip"
+          hx-swap="innerHTML">↻ Actualiser</button>
+        <a href="editor.html" class="btn btn-primary">+ Nouveau flow</a>
+      </div>
+    </header>
+
+    <main class="content stack">
+
+      <!-- O3 + O7 : bandeau agrégé, polling 5s -->
+      <div id="summary-strip"
+        hx-get="fragments/summary-strip.html"
+        hx-trigger="load, every 5s"
+        hx-swap="innerHTML">
+        <span class="text-xs muted">Chargement…</span>
+      </div>
+
+      <!-- Charts row -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="card p-4 lg:col-span-1">
+          <h2 class="text-xs font-medium mb-2 muted">Répartition statuts</h2>
+          <div id="chart-status-donut" class="h-48"></div>
+        </div>
+        <div class="card p-4 lg:col-span-2">
+          <h2 class="text-xs font-medium mb-2 muted">Durée dernier run par flow (s)</h2>
+          <div id="chart-run-durations" class="h-48"></div>
+        </div>
+      </div>
+
+      <!-- O1 + O3 : liste flows -->
+      <div class="card overflow-x-auto">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Flow</th>
+              <th>Dataset</th>
+              <th>Pipeline</th>
+              <th>Dernier run</th>
+              <th>Statut</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <tr>
+              <td>
+                <a href="monitor.html" class="font-medium accent hover:underline">stab97</a>
+                <p class="text-xs mt-0.5 muted">Pipeline complet STAB97</p>
+              </td>
+              <td class="mono text-xs">STAB97</td>
+              <td><span class="badge badge-success">à jour</span></td>
+              <td class="text-xs">
+                <span class="mono">a1b2c3d4</span><br>
+                <span class="muted">il y a 2h · 3m 41s</span>
+              </td>
+              <td>
+                <span class="badge badge-running"><span class="w-1.5 h-1.5 rounded-full pulse" style="background:currentColor"></span> running</span>
+              </td>
+              <td class="text-right space-x-1 whitespace-nowrap">
+                <button class="btn btn-danger btn-sm"
+                  hx-delete="/api/runs/stab97/stop"
+                  hx-confirm="Arrêter le run en cours ?"
+                  hx-swap="none">■ Stop</button>
+                <a href="monitor.html" class="btn btn-ghost btn-sm">Monitor</a>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <span class="font-medium">my-experiment</span>
+                <p class="text-xs mt-0.5 muted">Flow standard 9 étapes</p>
+              </td>
+              <td class="mono text-xs">MY-EXPERIMENT</td>
+              <td><span class="badge badge-success">à jour</span></td>
+              <td class="text-xs">
+                <span class="mono">f9e8d7c6</span><br>
+                <span class="muted">hier · 45s</span>
+              </td>
+              <td><span class="badge badge-success">ok</span></td>
+              <td class="text-right space-x-1 whitespace-nowrap">
+                <button class="btn btn-success btn-sm"
+                  hx-post="/api/run/my-experiment"
+                  hx-swap="none"
+                  hx-on::after-request="alert('Run démarré — run_id dans la réponse')">▶ Run</button>
+                <a href="editor.html" class="btn btn-ghost btn-sm">Edit</a>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <span class="font-medium">nightly-backfill</span>
+                <p class="text-xs mt-0.5 muted">Backfill nocturne J-1</p>
+              </td>
+              <td class="mono text-xs">STAB97</td>
+              <td><span class="badge badge-warning">incomplet</span></td>
+              <td class="text-xs">
+                <span class="mono">b2c3d4e5</span><br>
+                <span class="muted">08/06 · 6m 20s</span>
+              </td>
+              <td><span class="badge badge-error">error</span></td>
+              <td class="text-right space-x-1 whitespace-nowrap">
+                <button class="btn btn-success btn-sm"
+                  hx-post="/api/run/nightly-backfill"
+                  hx-vals='{"from":"2026-06-07T00:00:00Z","to":"2026-06-08T00:00:00Z"}'
+                  hx-swap="none">↻ Retry</button>
+                <a href="history.html" class="btn btn-ghost btn-sm">Logs</a>
+              </td>
+            </tr>
+
+            <tr>
+              <td>
+                <span class="font-medium">csv-export</span>
+                <p class="text-xs mt-0.5 muted">Export CSV uniquement</p>
+              </td>
+              <td class="mono text-xs">MY-EXPERIMENT</td>
+              <td><span class="badge badge-idle">—</span></td>
+              <td class="text-xs muted">jamais lancé</td>
+              <td><span class="badge badge-idle">idle</span></td>
+              <td class="text-right whitespace-nowrap">
+                <button class="btn btn-success btn-sm"
+                  hx-post="/api/run/csv-export"
+                  hx-vals='{"from_step":"exportcsv"}'
+                  hx-swap="none">▶ Run</button>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-xs muted">
+        API : <span class="mono">GET /api/flows</span> · <span class="mono">GET /api/status</span> ·
+        <span class="mono">POST /api/run/{flow}</span> · <span class="mono">DELETE /api/runs/{flow}/stop</span>
+      </p>
+    </main>
+  </div>
+</div>
+
+<script src="js/pyperun.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/charts.js"></script>
+</body>
+</html>

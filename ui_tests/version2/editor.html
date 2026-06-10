@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyperun · Editor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="bg-grid" onload="Pyperun.requireAuth()">
+
+<div class="app" data-page="editor">
+  <div class="main">
+
+    <header class="topbar">
+      <h1 class="topbar-title">Editor</h1>
+      <select class="input"
+        hx-get="/api/flows/stab97/config"
+        hx-target="#flow-json"
+        hx-swap="innerHTML">
+        <option>stab97</option>
+        <option>my-experiment</option>
+        <option>nightly-backfill</option>
+      </select>
+      <div class="topbar-actions">
+        <button class="btn btn-ghost"
+          hx-post="/api/flows/stab97/validate"
+          hx-target="#validation-result"
+          hx-swap="innerHTML">✓ Valider</button>
+        <button class="btn btn-primary"
+          hx-put="/api/flows/stab97/config"
+          hx-include="#flow-json textarea"
+          hx-target="#save-result"
+          hx-swap="innerHTML">Sauvegarder</button>
+      </div>
+    </header>
+
+    <main class="content flush">
+      <div class="flex flex-col lg:flex-row lg:h-full lg:overflow-hidden">
+
+        <!-- C1 : JSON brut -->
+        <div class="lg:w-1/2 flex flex-col border-b lg:border-b-0 lg:border-r bordered">
+          <div class="card-head">flow.json · C1 get_flow_config</div>
+          <div id="flow-json" class="lg:flex-1 lg:overflow-auto p-4">
+            <textarea class="input w-full mono text-[11px] resize-none leading-relaxed h-80 lg:h-full" spellcheck="false">{
+  "name": "stab97",
+  "description": "Pipeline complet STAB97",
+  "dataset": "STAB97",
+  "params": {
+    "from": "2026-01-01T00:00:00Z"
+  },
+  "steps": [
+    {"treatment": "parse",    "input": "00_raw",        "output": "10_parsed"},
+    {"treatment": "clean",    "input": "10_parsed",     "output": "20_clean"},
+    {"treatment": "resample", "input": "20_clean",      "output": "25_resampled"},
+    {"treatment": "transform","input": "25_resampled",  "output": "30_transform"},
+    {"treatment": "normalize","input": "30_transform",  "output": "35_normalized",
+     "params": {"fit": true}},
+    {"treatment": "aggregate","input": "35_normalized", "output": "40_aggregated"},
+    {"treatment": "to_postgres","input": "40_aggregated","output": "60_postgres",
+     "params": {"host": "postgres.local", "mode": "replace"}},
+    {"treatment": "exportcsv", "input": "40_aggregated","output": "61_exportcsv",
+     "name": "exportcsv_60s", "params": {"aggregation": "60s"}},
+    {"treatment": "exportduckdb","input": "40_aggregated","output": "63_exportduckdb"}
+  ]
+}</textarea>
+          </div>
+          <div id="save-result" class="px-4 py-2 text-xs border-t bordered muted"></div>
+        </div>
+
+        <!-- C3 : formulaire guidé par describe_treatment (O6) -->
+        <div class="lg:w-1/2 flex flex-col lg:overflow-hidden">
+          <div class="card-head">
+            Params étape · C3 · <span class="mono accent">to_postgres</span>
+          </div>
+          <div class="lg:flex-1 lg:overflow-auto p-4 stack">
+
+            <div id="validation-result"></div>
+
+            <!-- Steps list -->
+            <div class="flex gap-1 flex-wrap">
+              <button class="btn btn-ghost btn-sm">parse</button>
+              <button class="btn btn-ghost btn-sm">clean</button>
+              <button class="btn btn-ghost btn-sm">resample</button>
+              <button class="btn btn-ghost btn-sm">transform</button>
+              <button class="btn btn-ghost btn-sm">normalize</button>
+              <button class="btn btn-ghost btn-sm">aggregate</button>
+              <button class="btn btn-primary btn-sm">to_postgres</button>
+              <button class="btn btn-ghost btn-sm">exportcsv</button>
+              <button class="btn btn-ghost btn-sm">exportduckdb</button>
+            </div>
+
+            <p class="text-xs muted">
+              Schéma depuis <span class="mono">describe_treatment("to_postgres")</span> — 40_aggregated → PostgreSQL (external)
+            </p>
+
+            <div class="space-y-3">
+              <div>
+                <label class="field-label">host <span class="t-str">string</span> · requis</label>
+                <input class="input w-full mono" value="postgres.local">
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="field-label">port <span class="t-num">int</span></label>
+                  <input class="input w-full mono" type="number" value="5432">
+                </div>
+                <div>
+                  <label class="field-label">dbname <span class="t-str">string</span></label>
+                  <input class="input w-full mono" value="grafana">
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label class="field-label">user <span class="t-str">string</span></label>
+                  <input class="input w-full mono" value="pyperun">
+                </div>
+                <div>
+                  <label class="field-label">password <span class="t-str">string</span> · redacted</label>
+                  <input class="input w-full mono" type="password" value="••••••••">
+                </div>
+              </div>
+              <div>
+                <label class="field-label">mode <span class="t-str">enum</span></label>
+                <select class="input w-full">
+                  <option>append</option>
+                  <option selected>replace</option>
+                  <option>reset</option>
+                </select>
+              </div>
+              <div>
+                <label class="field-label">aggregations <span class="t-str">list</span></label>
+                <input class="input w-full mono" value='["10s", "60s", "5min", "1h"]'>
+              </div>
+            </div>
+
+            <div class="card p-3 text-xs muted">
+              <strong class="accent">Héritage params</strong> : treatment.json → flow.params → step.params → CLI
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="js/pyperun.js"></script>
+<script src="js/layout.js"></script>
+</body>
+</html>

@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyperun · Getting Started</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/theme.css">
+  <style>
+    .doc { max-width: 52rem; margin: 0 auto; }
+    .doc h2 { scroll-margin-top: 5rem; }
+    .step-num {
+      width: 1.75rem; height: 1.75rem; flex-shrink: 0;
+      border-radius: 999px; display: inline-flex;
+      align-items: center; justify-content: center;
+      background: var(--accent); color: var(--bg-deep);
+      font-weight: 700; font-size: 0.85rem;
+    }
+    .code {
+      background: var(--bg-deep); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 0.85rem 1rem;
+      font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem;
+      color: var(--text); overflow-x: auto; white-space: pre;
+      position: relative;
+    }
+    .code .c { color: var(--text-muted); }
+    .code .p { color: var(--accent); }
+    .pill {
+      display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px;
+      font-size: 0.7rem; font-family: 'IBM Plex Mono', monospace;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+    }
+    .toc a { color: var(--text-muted); text-decoration: none; }
+    .toc a:hover { color: var(--accent); }
+    .arrow { color: var(--accent); }
+  </style>
+</head>
+<body class="bg-grid min-h-screen">
+
+  <header class="topbar sticky top-0 z-30" style="background:var(--bg-panel)">
+    <div class="flex items-center gap-2.5">
+      <div class="sidebar-logo">P</div>
+      <span class="font-semibold">Pyperun</span>
+    </div>
+    <span class="badge badge-idle">Getting Started</span>
+    <div class="topbar-actions">
+      <a href="dashboard.html" class="btn btn-ghost btn-sm">Ouvrir l'UI →</a>
+    </div>
+  </header>
+
+  <main class="content doc stack py-8">
+
+    <!-- Hero -->
+    <section class="stack">
+      <h1 class="text-3xl font-bold">Premiers pas avec Pyperun</h1>
+      <p class="text-lg muted">
+        Un pipeline minimal de traitement de données IoT temporelles. De ton fichier
+        CSV brut jusqu'au parquet agrégé prêt pour le ML, l'export PostgreSQL et CSV —
+        en <span class="accent">une seule commande</span>.
+      </p>
+      <div class="flex flex-wrap gap-2 text-xs">
+        <span class="pill">Python 3</span>
+        <span class="pill">CSV → Parquet</span>
+        <span class="pill">10 traitements</span>
+        <span class="pill">CLI + UI + MCP</span>
+      </div>
+    </section>
+
+    <!-- TOC -->
+    <nav class="card p-4 toc text-sm">
+      <div class="card-head -m-4 mb-3 rounded-t">Sommaire</div>
+      <ol class="space-y-1.5 mono list-decimal list-inside">
+        <li><a href="#install">Installer</a></li>
+        <li><a href="#init">Créer un dataset</a></li>
+        <li><a href="#data">Déposer les données brutes</a></li>
+        <li><a href="#run">Lancer le pipeline</a></li>
+        <li><a href="#status">Vérifier le statut</a></li>
+        <li><a href="#partial">Rejouer une seule étape</a></li>
+        <li><a href="#pipeline">Comprendre le pipeline</a></li>
+        <li><a href="#next">Et après ?</a></li>
+      </ol>
+    </nav>
+
+    <!-- 1. Install -->
+    <section id="install" class="card p-6 stack">
+      <div class="flex items-center gap-3">
+        <span class="step-num">1</span>
+        <h2 class="text-xl font-semibold">Installer</h2>
+      </div>
+      <p class="muted text-sm">Depuis la racine du projet, en mode éditable avec les dépendances de dev :</p>
+      <div class="code"><span class="c"># installe pyperun + outils de dev</span>
+pip install -e <span class="p">".[dev]"</span>
+
+<span class="c"># vérifie que la commande répond</span>
+pyperun --help</div>
+      <p class="text-xs muted">
+        💡 Option DuckDB : <span class="mono">pip install -e ".[duckdb]"</span> pour activer l'export analytique.
+      </p>
+    </section>
+
+    <!-- 2. Init -->
+    <section id="init" class="card p-6 stack">
+      <div class="flex items-center gap-3">
+        <span class="step-num">2</span>
+        <h2 class="text-xl font-semibold">Créer un dataset</h2>
+      </div>
+      <p class="muted text-sm">
+        <span class="mono">init</span> échafaude l'arborescence des dossiers et un flow par défaut.
+      </p>
+      <div class="code">pyperun init <span class="p">MY-EXPERIMENT</span></div>
+      <p class="muted text-sm">Cela crée :</p>
+      <div class="code">datasets/MY-EXPERIMENT/
+├── 00_raw/          <span class="c"># ← tes CSV bruts vont ici</span>
+├── 10_parsed/
+├── 20_clean/
+├── …
+└── 40_aggregated/
+flows/my-experiment.json   <span class="c"># ← définition du pipeline</span></div>
+    </section>
+
+    <!-- 3. Data -->
+    <section id="data" class="card p-6 stack">
+      <div class="flex items-center gap-3">
+        <span class="step-num">3</span>
+        <h2 class="text-xl font-semibold">Déposer les données brutes</h2>
+      </div>
+      <p class="muted text-sm">
+        Copie tes fichiers CSV dans <span class="mono">datasets/MY-EXPERIMENT/00_raw/</span>.
+        Format attendu : sans header, point-virgule, paires <span class="mono">clé:valeur</span>.
+      </p>
+      <div class="code">2026-01-20T09:07:58.142308Z<span class="p">;</span>m0:10<span class="p">;</span>m1:12<span class="p">;</span>outdoor_temp:18.94</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+        <div class="elevated bordered rounded p-3">
+          <div class="accent font-medium mb-1 mono">bio_signal</div>
+          <div class="muted">colonnes m0–m11 · entiers (Int64)</div>
+        </div>
+        <div class="elevated bordered rounded p-3">
+          <div class="accent font-medium mb-1 mono">environment</div>
+          <div class="muted">outdoor_temp · flottant (Float64)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Run -->
+    <section id="run" class="card p-6 stack">
+      <div class="flex items-center gap-3">
+        <span class="step-num">4</span>
+        <h2 class="text-xl font-semibold">Lancer le pipeline</h2>
+      </div>
+      <p class="muted text-sm">La commande centrale. Elle exécute toutes les étapes dans l'ordre :</p>
+      <div class="code"><span class="c"># pipeline complet</span>
+pyperun flow <span class="p">my-experiment</span>
+
+<span class="c"># sur une fenêtre temporelle</span>
+pyperun flow my-experiment <span class="p">--from</span> 2026-01-01T00:00:00Z <span class="p">--to</span> 2026-02-01T00:00:00Z
+
+<span class="c"># tout effacer et reprendre de zéro</span>
+pyperun flow my-experiment <span class="p">--output-mode</span> reset</div>
+    </section>
+
+    <!-- 5. Status -->
+    <section id="status" class="card p-6 stack">
+      <div class="flex items-center gap-3">
+        <span class="step-num">5</span>
+        <h2 class="text-xl font-semibold">Vérifier le statut</h2>
+      </div>
+      <p class="muted text-sm">Voir l'état à jour / en retard de chaque dataset :</p>
+      <div class="code">pyperun status</div>
+      <p class="muted text-sm">Lister ce qui est disponible :</p>
+      <div class="code">pyperun list flows
+pyperun list treatments
+pyperun list steps <span class="p">--flow</span> my-experiment</div>
+    </section>
+
+    <!-- 6. Partial -->
+    <section id="partial" class="card p-6 stack">
+      <div class="flex items-center gap-3">
+        <span class="step-num">6</span>
+        <h2 class="text-xl font-semibold">Rejouer une seule étape</h2>
+      </div>
+      <p class="muted text-sm">Pas besoin de tout relancer. Cible une étape précise :</p>
+      <div class="code"><span class="c"># une seule étape</span>
+pyperun flow my-experiment <span class="p">--step</span> clean
+
+<span class="c"># d'une étape jusqu'à la fin</span>
+pyperun flow my-experiment <span class="p">--from-step</span> resample</div>
+    </section>
+
+    <!-- 7. Pipeline -->
+    <section id="pipeline" class="card overflow-x-auto stack">
+      <div class="p-6 pb-0 flex items-center gap-3">
+        <span class="step-num">7</span>
+        <h2 class="text-xl font-semibold">Comprendre le pipeline</h2>
+      </div>
+      <p class="muted text-sm px-6">10 traitements enchaînés, chacun lit un dossier et écrit le suivant :</p>
+      <table class="table text-xs mb-2">
+        <thead>
+          <tr><th>#</th><th>Traitement</th><th>Entrée → Sortie</th><th>Rôle</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td class="mono accent">parse</td><td class="mono">00_raw → 10_parsed</td><td class="muted">CSV clé:valeur → parquet typé</td></tr>
+          <tr><td>2</td><td class="mono accent">clean</td><td class="mono">10_parsed → 20_clean</td><td class="muted">dédoublonne, bornes, anti-spikes</td></tr>
+          <tr><td>3</td><td class="mono accent">resample</td><td class="mono">20_clean → 25_resampled</td><td class="muted">grille régulière 1 s, ffill</td></tr>
+          <tr><td>4</td><td class="mono accent">transform</td><td class="mono">25_resampled → 30_transform</td><td class="muted">maths déclaratives (log, cbrt_inv)</td></tr>
+          <tr><td>5</td><td class="mono accent">normalize</td><td class="mono">30_transform → 35_normalized</td><td class="muted">normalisation par percentile</td></tr>
+          <tr><td>6</td><td class="mono accent">aggregate</td><td class="mono">35_normalized → 40_aggregated</td><td class="muted">fenêtres 10s/60s/5min/1h</td></tr>
+          <tr><td>7</td><td class="mono accent">to_postgres</td><td class="mono">40_aggregated → PostgreSQL</td><td class="muted"><span class="badge badge-warning text-[9px]">externe</span> tables Grafana</td></tr>
+          <tr><td>8</td><td class="mono accent">exportcsv</td><td class="mono">40_aggregated → 61_exportcsv</td><td class="muted">CSV par device</td></tr>
+          <tr><td>9</td><td class="mono accent">exportparquet</td><td class="mono">40_aggregated → 62_exportparquet</td><td class="muted">parquet unique par device</td></tr>
+          <tr><td>10</td><td class="mono accent">exportduckdb</td><td class="mono">40_aggregated → 63_exportduckdb</td><td class="muted">base DuckDB unique</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 8. Next -->
+    <section id="next" class="card p-6 stack">
+      <div class="flex items-center gap-3">
+        <span class="step-num">8</span>
+        <h2 class="text-xl font-semibold">Et après ?</h2>
+      </div>
+      <ul class="space-y-2 text-sm muted">
+        <li><span class="arrow">→</span> Configure chaque étape via <span class="mono">pyperun/treatments/&lt;nom&gt;/treatment.json</span> ou <span class="mono">--params '{…}'</span>.</li>
+        <li><span class="arrow">→</span> Édite ton pipeline dans <span class="mono">flows/my-experiment.json</span> (ajoute/retire des étapes).</li>
+        <li><span class="arrow">→</span> Lance les tests : <span class="mono">python -m pytest tests/ -v</span>.</li>
+        <li><span class="arrow">→</span> Pilote tout depuis l'interface graphique.</li>
+      </ul>
+      <div class="flex gap-2 pt-1">
+        <a href="login.html" class="btn btn-primary">Ouvrir l'UI</a>
+        <a href="catalog.html" class="btn btn-ghost">Explorer le catalogue</a>
+      </div>
+    </section>
+
+    <footer class="text-center text-xs muted py-4">
+      Pyperun · pipeline IoT time-series · CLI · UI · MCP
+    </footer>
+
+  </main>
+</body>
+</html>

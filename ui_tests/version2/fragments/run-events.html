@@ -1,0 +1,39 @@
+<!-- Fragment HTMX — GET /api/runs/{run_id}/events (O4) -->
+<div class="space-y-1 mono text-[11px]">
+  <div class="flex gap-3 py-1 border-b" style="border-color:var(--border)">
+    <span style="color:var(--text-muted);min-width:72px">06:00:02</span>
+    <span class="badge badge-running" style="min-width:52px;justify-content:center">start</span>
+    <span>parse</span>
+    <span class="ml-auto" style="color:var(--text-muted)">00_raw → 10_parsed</span>
+  </div>
+  <div class="flex gap-3 py-1 border-b" style="border-color:var(--border)">
+    <span style="color:var(--text-muted);min-width:72px">06:00:08</span>
+    <span class="badge badge-success" style="min-width:52px;justify-content:center">ok</span>
+    <span>parse</span>
+    <span class="ml-auto" style="color:var(--text-muted)">5.8s</span>
+  </div>
+  <div class="flex gap-3 py-1 border-b" style="border-color:var(--border)">
+    <span style="color:var(--text-muted);min-width:72px">06:00:08</span>
+    <span class="badge badge-running" style="min-width:52px;justify-content:center">start</span>
+    <span>clean</span>
+    <span class="ml-auto" style="color:var(--text-muted)">10_parsed → 20_clean</span>
+  </div>
+  <div class="flex gap-3 py-1 border-b" style="border-color:var(--border)">
+    <span style="color:var(--text-muted);min-width:72px">06:00:20</span>
+    <span class="badge badge-success" style="min-width:52px;justify-content:center">ok</span>
+    <span>clean</span>
+    <span class="ml-auto" style="color:var(--text-muted)">12.1s</span>
+  </div>
+  <div class="flex gap-3 py-1 border-b" style="border-color:var(--border)">
+    <span style="color:var(--text-muted);min-width:72px">06:00:20</span>
+    <span class="badge badge-running" style="min-width:52px;justify-content:center">start</span>
+    <span>resample</span>
+    <span class="ml-auto" style="color:var(--text-muted)">20_clean → 25_resampled</span>
+  </div>
+  <div class="flex gap-3 py-1" style="color:var(--running)">
+    <span style="color:var(--text-muted);min-width:72px">06:00:45</span>
+    <span class="badge badge-running pulse" style="min-width:52px;justify-content:center">…</span>
+    <span>resample</span>
+    <span class="ml-auto">en cours</span>
+  </div>
+</div>

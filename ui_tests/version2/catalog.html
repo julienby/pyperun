@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pyperun · Catalog</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+  <link rel="stylesheet" href="css/theme.css">
+</head>
+<body class="bg-grid" onload="Pyperun.requireAuth()">
+
+<div class="app" data-page="catalog">
+  <div class="main">
+
+    <header class="topbar">
+      <h1 class="topbar-title">Catalog</h1>
+      <div class="flex gap-1">
+        <button class="btn btn-primary btn-sm">Treatments</button>
+        <button class="btn btn-ghost btn-sm">Datasets</button>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-success"
+          hx-post="/api/datasets/init"
+          hx-vals='{"name":"NEW-EXPERIMENT","preset":"full"}'
+          hx-swap="none">+ Init dataset</button>
+      </div>
+    </header>
+
+    <main class="content flush">
+      <div class="flex flex-col lg:flex-row lg:h-full lg:overflow-hidden">
+
+        <!-- O6 : liste treatments -->
+        <div class="lg:w-56 shrink-0 panel border-b lg:border-b-0 lg:border-r bordered lg:overflow-auto">
+          <div class="p-2 flex flex-col gap-0.5 text-xs">
+            <button class="nav-item active text-left"
+              hx-get="/api/treatments/parse"
+              hx-target="#treatment-detail"
+              hx-swap="innerHTML">parse</button>
+            <button class="nav-item text-left">clean</button>
+            <button class="nav-item text-left">resample</button>
+            <button class="nav-item text-left">transform</button>
+            <button class="nav-item text-left">normalize</button>
+            <button class="nav-item text-left">aggregate</button>
+            <button class="nav-item text-left">to_postgres <span class="badge badge-warning text-[9px] ml-1">ext</span></button>
+            <button class="nav-item text-left">exportcsv</button>
+            <button class="nav-item text-left">exportparquet</button>
+            <button class="nav-item text-left">exportduckdb</button>
+          </div>
+        </div>
+
+        <!-- Détail treatment -->
+        <div id="treatment-detail" class="flex-1 lg:overflow-auto p-6 stack">
+          <div>
+            <h2 class="text-lg font-semibold mono accent">parse</h2>
+            <p class="text-sm mt-1 muted">
+              Parse key:value CSV → parquet typé, split par domaine et jour
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="card p-4">
+              <h3 class="text-xs font-medium mb-2 muted">Entrée</h3>
+              <p class="mono text-sm">00_raw/</p>
+              <p class="text-xs mt-2 muted">CSV semicolon, key:value, sans header</p>
+            </div>
+            <div class="card p-4">
+              <h3 class="text-xs font-medium mb-2 muted">Sortie</h3>
+              <p class="mono text-sm">10_parsed/</p>
+              <p class="text-xs mt-2 muted"><span class="mono">{src}__{domain}__{date}.parquet</span></p>
+            </div>
+          </div>
+
+          <div class="card overflow-x-auto">
+            <div class="card-head">Paramètres · describe_treatment</div>
+            <table class="table text-xs">
+              <thead>
+                <tr><th>Nom</th><th>Type</th><th>Défaut</th><th>Description</th></tr>
+              </thead>
+              <tbody class="mono">
+                <tr><td>delimiter</td><td class="t-str">string</td><td>";"</td><td class="font-sans muted">Séparateur CSV</td></tr>
+                <tr><td>tz</td><td class="t-str">string</td><td>"UTC"</td><td class="font-sans muted">Timezone parsing</td></tr>
+                <tr><td>domains</td><td class="t-str">object</td><td>{…}</td><td class="font-sans muted">bio_signal, environment</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Datasets sidebar -->
+        <div class="lg:w-64 shrink-0 panel border-t lg:border-t-0 lg:border-l bordered lg:overflow-auto p-4">
+          <h3 class="text-xs font-medium mb-3 muted">Datasets</h3>
+          <div class="space-y-2">
+            <div class="card p-3">
+              <div class="flex justify-between items-start">
+                <span class="mono font-medium text-sm">STAB97</span>
+                <span class="badge badge-success text-[9px]">actif</span>
+              </div>
+              <p class="text-[10px] mt-1 muted">142 raw · 9 étapes</p>
+              <div class="flex gap-1 mt-2">
+                <a href="monitor.html" class="btn btn-ghost btn-sm">Monitor</a>
+                <button class="btn btn-danger btn-sm"
+                  hx-delete="/api/datasets/STAB97"
+                  hx-confirm="Supprimer le dataset ? Irréversible."
+                  hx-swap="none">Delete</button>
+              </div>
+            </div>
+            <div class="card p-3">
+              <div class="flex justify-between items-start">
+                <span class="mono font-medium text-sm">MY-EXPERIMENT</span>
+                <span class="badge badge-idle text-[9px]">vide</span>
+              </div>
+              <p class="text-[10px] mt-1 muted">0 raw · scaffold</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</div>
+
+<script src="js/pyperun.js"></script>
+<script src="js/layout.js"></script>
+</body>
+</html>
