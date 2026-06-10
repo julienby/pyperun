@@ -120,16 +120,17 @@ No data of your own yet? Seed **DEMO**, the built-in reference dataset, and run
 it end-to-end — a good way to verify any install:
 
 ```bash
-python scripts/seed_demo.py     # creates datasets/DEMO/ + flows/demo.json
+pyperun seed-demo               # creates datasets/DEMO/ + flows/demo.json
 pyperun flow demo
 pyperun status                  # → demo (DEMO) ... up-to-date
 ```
 
-For a Docker instance (flows/ is read-only inside the container), seed on the
-host then run inside:
+For a Docker instance (`flows/` is read-only inside the container), seed from the
+host with the `pyperun-seed-demo` helper — no local Python needed — then run inside:
 
 ```bash
-python scripts/seed_demo.py --target ~/.pyperun/my-instance/data
+cp scripts/pyperun-seed-demo ~/.local/bin/ && chmod +x ~/.local/bin/pyperun-seed-demo  # install once
+pyperun-seed-demo my-instance
 docker exec pyperun-my-instance pyperun flow demo
 ```
 

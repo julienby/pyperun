@@ -170,7 +170,9 @@ pyperun flow my-experiment <span class="p">--from</span> 2026-01-01T00:00:00Z <s
 pyperun flow my-experiment <span class="p">--output-mode</span> reset</div>
       <p class="text-xs muted">
         💡 Pas encore de données ? Sème le dataset de référence <span class="mono">DEMO</span> et teste le pipeline de bout en bout :
-        <span class="mono">python scripts/seed_demo.py</span> puis <span class="mono">pyperun flow demo</span>.
+        <span class="mono">pyperun seed-demo</span> puis <span class="mono">pyperun flow demo</span>.
+        En Docker, sème depuis l'hôte (sans Python local) :
+        <span class="mono">pyperun-seed-demo my-instance</span> puis <span class="mono">docker exec pyperun-my-instance pyperun flow demo</span>.
       </p>
     </section>
 

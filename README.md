@@ -119,23 +119,32 @@ my-experiment (MY-EXPERIMENT)
 
 ## Demo / reference dataset
 
-`scripts/seed_demo.py` seeds **DEMO**, pyperun's canonical end-to-end test
+`pyperun seed-demo` seeds **DEMO**, pyperun's canonical end-to-end test
 fixture: a small, deterministic synthetic dataset (2 devices × 3 days, 1 Hz)
 with injected spikes, duplicate timestamps and short gaps so every step does
 real work. Use it to smoke-test an install or populate the UI.
 
 ```bash
-python scripts/seed_demo.py     # seeds datasets/DEMO/ + flows/demo.json
+pyperun seed-demo               # seeds datasets/DEMO/ + flows/demo.json
 pyperun flow demo               # runs the full on-disk pipeline (postgres skipped)
 ```
 
-For a Docker instance, flows/ is read-only in the container — seed on the host
-data dir, then run inside:
+For a Docker instance, `flows/` is read-only in the container — so seed from the
+host with the `pyperun-seed-demo` helper (no local Python; runs `seed-demo` in a
+throwaway container as you), then run inside:
 
 ```bash
-python scripts/seed_demo.py --target ~/.pyperun/my-instance/data
+cp scripts/pyperun-seed-demo ~/.local/bin/ && chmod +x ~/.local/bin/pyperun-seed-demo  # install once
+pyperun-seed-demo my-instance
 docker exec pyperun-my-instance pyperun flow demo
 ```
+
+> The seeder ships inside the image, so `pyperun seed-demo` also works directly
+> via `docker exec` — but that writes the demo flow to the read-only `flows/`
+> mount and would fail; `pyperun-seed-demo` runs it host-side instead.
+
+The old `python scripts/seed_demo.py [--target DIR]` still works from a source
+checkout (it now forwards to `pyperun seed-demo`).
 
 This is **the** reference dataset — grow it over time (more devices, edge cases)
 to widen coverage.
